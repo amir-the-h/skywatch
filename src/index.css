@@ -364,7 +364,7 @@ body.theme-light {
   width: 100%;
   padding: 0.4rem 0.75rem;
   border-radius: 6px;
-  border: 1px solid var(--border, #444);
+  border: 1px solid var(--border);
   background: transparent;
   color: inherit;
   cursor: pointer;
@@ -378,6 +378,15 @@ body.theme-light {
 }
 
 .geo-btn--error {
-  border-color: #e05252;
-  color: #e05252;
+  border-color: var(--error, #e05252);
+  color: var(--error, #e05252);
+}
+
+.geo-btn:hover:not(:disabled) {
+  background: var(--chip-bg);
+}
+
+.geo-btn:focus-visible {
+  outline: 2px solid var(--accent-light);
+  outline-offset: 2px;
 }

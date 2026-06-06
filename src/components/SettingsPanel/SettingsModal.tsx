@@ -49,9 +49,9 @@ export function SettingsModal({ onClose }: Props) {
             onClick={handleGeolocate}
             disabled={geoStatus === 'loading'}
           >
-            {geoStatus === 'idle' && '📍 Use my location'}
-            {geoStatus === 'loading' && '⏳ Detecting…'}
-            {geoStatus === 'error' && '⚠ Permission denied — tap to retry'}
+            {geoStatus === 'idle' && <><span aria-hidden="true">📍</span> Use my location</>}
+            {geoStatus === 'loading' && <><span aria-hidden="true">⏳</span> Detecting…</>}
+            {geoStatus === 'error' && <><span aria-hidden="true">⚠</span> Location unavailable — tap to retry</>}
           </button>
 
           <label>
