@@ -95,8 +95,8 @@ export function RadarView() {
     const handleWheel = (e: WheelEvent) => {
       e.preventDefault();
       const rect = canvas.getBoundingClientRect();
-      const mx = e.clientX - rect.left - canvas.width / 2;
-      const my = e.clientY - rect.top - canvas.height / 2;
+      const mx = e.clientX - rect.left - rect.width / 2;
+      const my = e.clientY - rect.top - rect.height / 2;
       const result = applyZoom(
         zoomLevelRef.current,
         panOffsetRef.current,
@@ -163,6 +163,8 @@ export function RadarView() {
           hasMoved.current = false;
           dragStart.current = { x: e.clientX, y: e.clientY };
           setCursor('grabbing');
+          setHovered(null);
+          setHoverPos(null);
         }}
         onMouseMove={(e) => {
           if (isDragging.current) {
