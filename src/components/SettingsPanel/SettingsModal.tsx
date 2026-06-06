@@ -22,7 +22,7 @@ export function SettingsModal({ onClose }: Props) {
               type="number"
               step="0.0001"
               value={settings.lat}
-              onChange={(e) => settings.update({ lat: parseFloat(e.target.value) })}
+              onChange={(e) => { const v = parseFloat(e.target.value); if (!isNaN(v)) settings.update({ lat: v }); }}
             />
           </label>
 
@@ -32,7 +32,7 @@ export function SettingsModal({ onClose }: Props) {
               type="number"
               step="0.0001"
               value={settings.lng}
-              onChange={(e) => settings.update({ lng: parseFloat(e.target.value) })}
+              onChange={(e) => { const v = parseFloat(e.target.value); if (!isNaN(v)) settings.update({ lng: v }); }}
             />
           </label>
 
