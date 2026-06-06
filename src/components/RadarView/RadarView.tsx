@@ -18,10 +18,16 @@ export function RadarView() {
   const pin = useAircraftStore((s) => s.pin);
   const setHovered = useAircraftStore((s) => s.setHovered);
 
+  // Refs so the rAF loop reads fresh hover/pin state without restarting on every hover
+  const hoveredHexRef = useRef(hoveredHex);
+  const pinnedHexesRef = useRef(pinnedHexes);
+  useEffect(() => { hoveredHexRef.current = hoveredHex; }, [hoveredHex]);
+  useEffect(() => { pinnedHexesRef.current = pinnedHexes; }, [pinnedHexes]);
+
   const [hoverPos, setHoverPos] = useState<{ x: number; y: number } | null>(null);
   const hoveredAircraft = hoveredHex ? aircraftMap.get(hoveredHex) : null;
 
-  // rAF draw loop
+  // rAF draw loop — only restarts when settings or aircraft data changes, not on hover
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -42,8 +48,8 @@ export function RadarView() {
         radiusKm,
         ringIntervals,
         aircraft,
-        hoveredHex,
-        pinnedHexes,
+        hoveredHex: hoveredHexRef.current,
+        pinnedHexes: pinnedHexesRef.current,
         theme,
       });
       rafRef.current = requestAnimationFrame(loop);
@@ -51,7 +57,7 @@ export function RadarView() {
 
     rafRef.current = requestAnimationFrame(loop);
     return () => cancelAnimationFrame(rafRef.current);
-  }, [lat, lng, radiusKm, ringIntervals, theme, aircraftMap, hoveredHex, pinnedHexes]);
+  }, [lat, lng, radiusKm, ringIntervals, theme, aircraftMap]);
 
   // Resize canvas to container
   useEffect(() => {

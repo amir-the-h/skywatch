@@ -55,15 +55,13 @@ function drawRings({ ctx, width, height, radiusKm, ringIntervals, theme }: Radar
   }
 }
 
-function drawGrid({ ctx, width, height, centerLat, radiusKm, theme }: RadarDrawParams) {
+function drawGrid({ ctx, width, height, radiusKm, theme }: RadarDrawParams) {
   const gridColor = theme === 'dark' ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.04)';
   ctx.strokeStyle = gridColor;
   ctx.lineWidth = 1;
 
   const scale = Math.min(width, height) / 2 / radiusKm;
   const stepKm = radiusKm / 4;
-  const latKmPerDeg = 111.0;
-  const lonKmPerDeg = 111.0 * Math.cos((centerLat * Math.PI) / 180);
 
   for (let i = -4; i <= 4; i++) {
     // Horizontal lines (latitude)
@@ -74,8 +72,8 @@ function drawGrid({ ctx, width, height, centerLat, radiusKm, theme }: RadarDrawP
     ctx.lineTo(width, y);
     ctx.stroke();
 
-    // Vertical lines (longitude)
-    const dxKm = (i * stepKm * latKmPerDeg) / lonKmPerDeg;
+    // Vertical lines (longitude) — equal km spacing, same as horizontal
+    const dxKm = i * stepKm;
     const x = width / 2 + dxKm * scale;
     ctx.beginPath();
     ctx.moveTo(x, 0);
@@ -115,7 +113,7 @@ function drawAllAircraft(params: RadarDrawParams) {
     const family = getAircraftFamily(ac.t);
     const pathStr = SILHOUETTE_PATHS[family];
     const isHighlighted = hoveredHex === ac.hex || pinnedHexes.has(ac.hex);
-    const isEmergency = !!(ac.emergency) || ac.squawk === '7700' || ac.squawk === '7600' || ac.squawk === '7500';
+    const isEmergency = (!!ac.emergency && ac.emergency !== 'none') || ac.squawk === '7700' || ac.squawk === '7600' || ac.squawk === '7500';
 
     ctx.save();
     ctx.translate(pos.x, pos.y);

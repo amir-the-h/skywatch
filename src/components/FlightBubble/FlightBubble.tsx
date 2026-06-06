@@ -71,7 +71,7 @@ export function FlightBubble({ aircraft }: Props) {
         <div className="bubble-row muted">{aircraft.seen}s ago</div>
       </div>
 
-      {(aircraft.nav_altitude_mcp || aircraft.nav_heading || aircraft.nav_modes?.length) && (
+      {(aircraft.nav_altitude_mcp != null || aircraft.nav_heading != null || aircraft.nav_modes?.length) && (
         <details
           className="bubble-autopilot"
           open={autopilotOpen}
