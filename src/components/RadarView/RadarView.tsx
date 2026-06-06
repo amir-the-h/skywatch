@@ -7,7 +7,7 @@ import { drawRadar } from './RadarCanvas';
 import { FlightBubble } from '../FlightBubble/FlightBubble';
 import { FlightPreview } from '../FlightBubble/FlightPreview';
 import { latLonToCanvas } from '../../lib/geoUtils';
-import { applyPan, applyZoom, type PanOffset } from './viewTransform';
+import { type PanOffset } from './viewTransform';
 
 export function RadarView() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
