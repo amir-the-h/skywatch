@@ -31,6 +31,7 @@ export function RadarView() {
   const isDragging = useRef(false);
   const dragStart = useRef({ x: 0, y: 0 });
   const hasMoved = useRef(false);
+  const pinTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [cursor, setCursor] = useState<'grab' | 'grabbing'>('grab');
 
   // Mirror settings into refs so stable wheel/drag callbacks read fresh values
@@ -97,13 +98,21 @@ export function RadarView() {
       const rect = canvas.getBoundingClientRect();
       const mx = e.clientX - rect.left - rect.width / 2;
       const my = e.clientY - rect.top - rect.height / 2;
+      const PIXELS_PER_LINE = 16;
+      const PIXELS_PER_PAGE = 400;
+      const normalizedDeltaY =
+        e.deltaMode === 2
+          ? e.deltaY * PIXELS_PER_PAGE
+          : e.deltaMode === 1
+            ? e.deltaY * PIXELS_PER_LINE
+            : e.deltaY;
       const result = applyZoom(
         zoomLevelRef.current,
         panOffsetRef.current,
         mx, my,
         canvas.width, canvas.height,
         latRef.current, lngRef.current, radiusKmRef.current,
-        e.deltaY
+        normalizedDeltaY
       );
       zoomLevelRef.current = result.zoomLevel;
       panOffsetRef.current = result.panOffset;
@@ -195,7 +204,13 @@ export function RadarView() {
           setCursor('grab');
           if (!wasDrag) {
             const hex = hitTest(e.clientX, e.clientY);
-            if (hex) pin(hex);
+            if (hex) {
+              if (pinTimeoutRef.current) clearTimeout(pinTimeoutRef.current);
+              pinTimeoutRef.current = setTimeout(() => {
+                pin(hex);
+                pinTimeoutRef.current = null;
+              }, 250);
+            }
           }
         }}
         onMouseLeave={() => {
@@ -205,6 +220,10 @@ export function RadarView() {
           setHovered(null);
         }}
         onDoubleClick={() => {
+          if (pinTimeoutRef.current) {
+            clearTimeout(pinTimeoutRef.current);
+            pinTimeoutRef.current = null;
+          }
           panOffsetRef.current = { dLat: 0, dLon: 0 };
           zoomLevelRef.current = 1;
         }}
