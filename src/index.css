@@ -359,3 +359,25 @@ body.theme-light {
   border: none;
   background: transparent;
 }
+
+.geo-btn {
+  width: 100%;
+  padding: 0.4rem 0.75rem;
+  border-radius: 6px;
+  border: 1px solid var(--border, #444);
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  font-size: 0.85rem;
+  transition: background 0.15s, border-color 0.15s, color 0.15s;
+}
+
+.geo-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.geo-btn--error {
+  border-color: #e05252;
+  color: #e05252;
+}
