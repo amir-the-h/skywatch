@@ -1,0 +1,80 @@
+// src/components/MapView/MapView.tsx
+import { useEffect, useState } from 'react';
+import { MapContainer, TileLayer, useMap } from 'react-leaflet';
+import 'leaflet/dist/leaflet.css';
+import { useAircraftStore } from '../../store/aircraftStore';
+import { useSettingsStore } from '../../hooks/useSettings';
+import { AircraftMarker } from './AircraftMarker';
+import { FlightPreview } from '../FlightBubble/FlightPreview';
+import { FlightBubble } from '../FlightBubble/FlightBubble';
+import { interpolatePosition } from '../../lib/interpolate';
+
+const OSM_TILES = 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png';
+const OSM_ATTR = '&copy; <a href="https://openstreetmap.org">OpenStreetMap</a>';
+const SAT_TILES =
+  'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}';
+const SAT_ATTR = '&copy; Esri';
+
+function MapRecenter({ lat, lng }: { lat: number; lng: number }) {
+  const map = useMap();
+  useEffect(() => {
+    map.setView([lat, lng]);
+  }, [lat, lng, map]);
+  return null;
+}
+
+export function MapView() {
+  const { lat, lng, tileSource } = useSettingsStore();
+  const aircraftMap = useAircraftStore((s) => s.aircraft);
+  const pinnedHexes = useAircraftStore((s) => s.pinnedHexes);
+  const hoveredHex = useAircraftStore((s) => s.hoveredHex);
+
+  const [renderTick, setRenderTick] = useState(0);
+  useEffect(() => {
+    const id = setInterval(() => setRenderTick((t) => t + 1), 100);
+    return () => clearInterval(id);
+  }, []);
+
+  const now = Date.now();
+  const aircraft = Array.from(aircraftMap.values()).map((ac) =>
+    interpolatePosition(ac, now)
+  );
+  void renderTick;
+
+  const [hoverPos, setHoverPos] = useState<{ x: number; y: number } | null>(null);
+  const hoveredAircraft = hoveredHex ? aircraftMap.get(hoveredHex) : null;
+
+  return (
+    <div
+      className="map-container"
+      onMouseMove={(e) => setHoverPos({ x: e.clientX, y: e.clientY })}
+    >
+      <MapContainer
+        center={[lat, lng]}
+        zoom={8}
+        style={{ height: '100%', width: '100%' }}
+        zoomControl={false}
+      >
+        <MapRecenter lat={lat} lng={lng} />
+        <TileLayer
+          url={tileSource === 'osm' ? OSM_TILES : SAT_TILES}
+          attribution={tileSource === 'osm' ? OSM_ATTR : SAT_ATTR}
+        />
+        {aircraft.map((ac) => (
+          <AircraftMarker key={ac.hex} aircraft={ac} />
+        ))}
+      </MapContainer>
+
+      {hoveredAircraft && hoverPos && !pinnedHexes.has(hoveredAircraft.hex) && (
+        <FlightPreview aircraft={hoveredAircraft} x={hoverPos.x} y={hoverPos.y} />
+      )}
+
+      <div className="bubbles-container">
+        {[...pinnedHexes].map((hex) => {
+          const ac = aircraftMap.get(hex);
+          return ac ? <FlightBubble key={hex} aircraft={ac} /> : null;
+        })}
+      </div>
+    </div>
+  );
+}
