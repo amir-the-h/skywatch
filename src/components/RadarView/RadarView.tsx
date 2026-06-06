@@ -7,7 +7,7 @@ import { drawRadar } from './RadarCanvas';
 import { FlightBubble } from '../FlightBubble/FlightBubble';
 import { FlightPreview } from '../FlightBubble/FlightPreview';
 import { latLonToCanvas } from '../../lib/geoUtils';
-import { type PanOffset } from './viewTransform';
+import { applyPan, applyZoom, type PanOffset } from './viewTransform';
 
 export function RadarView() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -27,6 +27,11 @@ export function RadarView() {
 
   const panOffsetRef = useRef<PanOffset>({ dLat: 0, dLon: 0 });
   const zoomLevelRef = useRef(1);
+
+  const isDragging = useRef(false);
+  const dragStart = useRef({ x: 0, y: 0 });
+  const hasMoved = useRef(false);
+  const [cursor, setCursor] = useState<'grab' | 'grabbing'>('grab');
 
   // Mirror settings into refs so stable wheel/drag callbacks read fresh values
   const latRef = useRef(lat);
@@ -82,6 +87,32 @@ export function RadarView() {
     return () => cancelAnimationFrame(rafRef.current);
   }, [lat, lng, radiusKm, ringIntervals, theme, aircraftMap]);
 
+  // Non-passive wheel listener for zoom
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+
+    const handleWheel = (e: WheelEvent) => {
+      e.preventDefault();
+      const rect = canvas.getBoundingClientRect();
+      const mx = e.clientX - rect.left - canvas.width / 2;
+      const my = e.clientY - rect.top - canvas.height / 2;
+      const result = applyZoom(
+        zoomLevelRef.current,
+        panOffsetRef.current,
+        mx, my,
+        canvas.width, canvas.height,
+        latRef.current, lngRef.current, radiusKmRef.current,
+        e.deltaY
+      );
+      zoomLevelRef.current = result.zoomLevel;
+      panOffsetRef.current = result.panOffset;
+    };
+
+    canvas.addEventListener('wheel', handleWheel, { passive: false });
+    return () => canvas.removeEventListener('wheel', handleWheel);
+  }, []);
+
   // Resize canvas to container
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -126,16 +157,55 @@ export function RadarView() {
     <div className="radar-container">
       <canvas
         ref={canvasRef}
-        style={{ width: '100%', height: '100%', display: 'block' }}
-        onClick={(e) => {
-          const hex = hitTest(e.clientX, e.clientY);
-          if (hex) pin(hex);
+        style={{ width: '100%', height: '100%', display: 'block', cursor }}
+        onMouseDown={(e) => {
+          isDragging.current = true;
+          hasMoved.current = false;
+          dragStart.current = { x: e.clientX, y: e.clientY };
+          setCursor('grabbing');
         }}
         onMouseMove={(e) => {
+          if (isDragging.current) {
+            const dx = e.clientX - dragStart.current.x;
+            const dy = e.clientY - dragStart.current.y;
+            if (!hasMoved.current && Math.hypot(dx, dy) < 4) return;
+            hasMoved.current = true;
+            const canvas = canvasRef.current;
+            if (!canvas) return;
+            const effectiveLat = latRef.current + panOffsetRef.current.dLat;
+            const effectiveRadius = radiusKmRef.current / zoomLevelRef.current;
+            panOffsetRef.current = applyPan(
+              panOffsetRef.current,
+              dx, dy,
+              effectiveLat, effectiveRadius,
+              canvas.width, canvas.height
+            );
+            dragStart.current = { x: e.clientX, y: e.clientY };
+            return;
+          }
           setHoverPos({ x: e.clientX, y: e.clientY });
           setHovered(hitTest(e.clientX, e.clientY));
         }}
-        onMouseLeave={() => setHovered(null)}
+        onMouseUp={(e) => {
+          const wasDrag = hasMoved.current;
+          isDragging.current = false;
+          hasMoved.current = false;
+          setCursor('grab');
+          if (!wasDrag) {
+            const hex = hitTest(e.clientX, e.clientY);
+            if (hex) pin(hex);
+          }
+        }}
+        onMouseLeave={() => {
+          isDragging.current = false;
+          hasMoved.current = false;
+          setCursor('grab');
+          setHovered(null);
+        }}
+        onDoubleClick={() => {
+          panOffsetRef.current = { dLat: 0, dLon: 0 };
+          zoomLevelRef.current = 1;
+        }}
       />
 
       {hoveredAircraft && hoverPos && !pinnedHexes.has(hoveredAircraft.hex) && (
