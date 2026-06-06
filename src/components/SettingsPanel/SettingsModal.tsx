@@ -10,6 +10,10 @@ export function SettingsModal({ onClose }: Props) {
   const [geoStatus, setGeoStatus] = useState<'idle' | 'loading' | 'error'>('idle');
 
   function handleGeolocate() {
+    if (!navigator.geolocation) {
+      setGeoStatus('error');
+      return;
+    }
     setGeoStatus('loading');
     navigator.geolocation.getCurrentPosition(
       (pos) => {
