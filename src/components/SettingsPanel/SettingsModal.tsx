@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { useSettingsStore } from '../../hooks/useSettings';
 
 interface Props {
@@ -6,6 +7,23 @@ interface Props {
 
 export function SettingsModal({ onClose }: Props) {
   const settings = useSettingsStore();
+  const [geoStatus, setGeoStatus] = useState<'idle' | 'loading' | 'error'>('idle');
+
+  function handleGeolocate() {
+    setGeoStatus('loading');
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        settings.update({
+          lat: parseFloat(pos.coords.latitude.toFixed(4)),
+          lng: parseFloat(pos.coords.longitude.toFixed(4)),
+        });
+        setGeoStatus('idle');
+      },
+      () => {
+        setGeoStatus('error');
+      }
+    );
+  }
 
   return (
     <div className="modal-backdrop" onClick={onClose}>
@@ -25,6 +43,16 @@ export function SettingsModal({ onClose }: Props) {
               onChange={(e) => { const v = parseFloat(e.target.value); if (!isNaN(v)) settings.update({ lat: v }); }}
             />
           </label>
+
+          <button
+            className={`geo-btn${geoStatus === 'error' ? ' geo-btn--error' : ''}`}
+            onClick={handleGeolocate}
+            disabled={geoStatus === 'loading'}
+          >
+            {geoStatus === 'idle' && '📍 Use my location'}
+            {geoStatus === 'loading' && '⏳ Detecting…'}
+            {geoStatus === 'error' && '⚠ Permission denied — tap to retry'}
+          </button>
 
           <label>
             Longitude
