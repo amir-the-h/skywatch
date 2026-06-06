@@ -7,6 +7,7 @@ import { drawRadar } from './RadarCanvas';
 import { FlightBubble } from '../FlightBubble/FlightBubble';
 import { FlightPreview } from '../FlightBubble/FlightPreview';
 import { latLonToCanvas } from '../../lib/geoUtils';
+import { applyPan, applyZoom, type PanOffset } from './viewTransform';
 
 export function RadarView() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -24,6 +25,25 @@ export function RadarView() {
   useEffect(() => { hoveredHexRef.current = hoveredHex; }, [hoveredHex]);
   useEffect(() => { pinnedHexesRef.current = pinnedHexes; }, [pinnedHexes]);
 
+  const panOffsetRef = useRef<PanOffset>({ dLat: 0, dLon: 0 });
+  const zoomLevelRef = useRef(1);
+
+  // Mirror settings into refs so stable wheel/drag callbacks read fresh values
+  const latRef = useRef(lat);
+  const lngRef = useRef(lng);
+  const radiusKmRef = useRef(radiusKm);
+  useEffect(() => {
+    latRef.current = lat;
+    lngRef.current = lng;
+    radiusKmRef.current = radiusKm;
+  }, [lat, lng, radiusKm]);
+
+  // Reset pan/zoom whenever the user changes settings
+  useEffect(() => {
+    panOffsetRef.current = { dLat: 0, dLon: 0 };
+    zoomLevelRef.current = 1;
+  }, [lat, lng, radiusKm]);
+
   const [hoverPos, setHoverPos] = useState<{ x: number; y: number } | null>(null);
   const hoveredAircraft = hoveredHex ? aircraftMap.get(hoveredHex) : null;
 
@@ -39,13 +59,16 @@ export function RadarView() {
       const aircraft = Array.from(aircraftMap.values()).map((ac) =>
         interpolatePosition(ac, now)
       );
+      const effectiveLat = latRef.current + panOffsetRef.current.dLat;
+      const effectiveLon = lngRef.current + panOffsetRef.current.dLon;
+      const effectiveRadius = radiusKmRef.current / zoomLevelRef.current;
       drawRadar({
         ctx,
         width: canvas.width,
         height: canvas.height,
-        centerLat: lat,
-        centerLon: lng,
-        radiusKm,
+        centerLat: effectiveLat,
+        centerLon: effectiveLon,
+        radiusKm: effectiveRadius,
         ringIntervals,
         aircraft,
         hoveredHex: hoveredHexRef.current,
@@ -82,15 +105,21 @@ export function RadarView() {
       const mx = clientX - rect.left;
       const my = clientY - rect.top;
 
+      const effectiveLat = latRef.current + panOffsetRef.current.dLat;
+      const effectiveLon = lngRef.current + panOffsetRef.current.dLon;
+      const effectiveRadius = radiusKmRef.current / zoomLevelRef.current;
+
       for (const ac of aircraftMap.values()) {
         const pos = latLonToCanvas(
-          ac._renderLat, ac._renderLon, lat, lng, radiusKm, canvas.width, canvas.height
+          ac._renderLat, ac._renderLon,
+          effectiveLat, effectiveLon, effectiveRadius,
+          canvas.width, canvas.height
         );
         if (Math.hypot(mx - pos.x, my - pos.y) < 18) return ac.hex;
       }
       return null;
     },
-    [aircraftMap, lat, lng, radiusKm]
+    [aircraftMap]
   );
 
   return (
