@@ -15,6 +15,8 @@ export type AircraftFamily =
   | 'military'
   | 'generic';
 
+export type LabelCondition = 'always' | 'airport' | 'emergency' | 'pinned';
+
 export interface Aircraft {
   hex: string;
   flight: string;           // callsign
