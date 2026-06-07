@@ -9,6 +9,9 @@ import { FlightBubble } from '../FlightBubble/FlightBubble';
 import { FlightPreview } from '../FlightBubble/FlightPreview';
 import { latLonToCanvas } from '../../lib/geoUtils';
 import { applyZoom } from './viewTransform';
+import { useFilterStore } from '../../store/filterStore';
+import { matchesFilter } from '../../lib/aircraftFilter';
+import { FilterDrawer } from '../FilterDrawer/FilterDrawer';
 
 export function RadarView() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -46,6 +49,10 @@ export function RadarView() {
   useEffect(() => { trailLengthRef.current = trailLength; }, [trailLength]);
   useEffect(() => { labelConditionsRef.current = labelConditions; }, [labelConditions]);
 
+  const filters = useFilterStore();
+  const filtersRef = useRef(filters);
+  useEffect(() => { filtersRef.current = filters; }, [filters]);
+
   // Reset zoom when radius changes
   useEffect(() => {
     zoomLevelRef.current = 1;
@@ -63,9 +70,10 @@ export function RadarView() {
 
     const loop = () => {
       const now = Date.now();
-      const aircraft = Array.from(aircraftMap.values()).map((ac) =>
+      const allAircraft = Array.from(aircraftMap.values()).map((ac) =>
         interpolatePosition(ac, now)
       );
+      const aircraft = allAircraft.filter((ac) => matchesFilter(ac, filtersRef.current));
       const effectiveRadius = radiusKmRef.current / zoomLevelRef.current;
       drawRadar({
         ctx,
@@ -150,6 +158,7 @@ export function RadarView() {
       const effectiveRadius = radiusKmRef.current / zoomLevelRef.current;
 
       for (const ac of aircraftMap.values()) {
+        if (!matchesFilter(ac, filtersRef.current)) continue;
         const pos = latLonToCanvas(
           ac._renderLat, ac._renderLon,
           latRef.current, lngRef.current, effectiveRadius,
@@ -233,6 +242,7 @@ export function RadarView() {
           return <FlightBubble key={hex} aircraft={ac} color={color} />;
         })}
       </div>
+      <FilterDrawer />
     </div>
   );
 }
