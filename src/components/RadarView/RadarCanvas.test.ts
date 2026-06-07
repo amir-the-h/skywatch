@@ -1,0 +1,159 @@
+// src/components/RadarView/RadarCanvas.test.ts
+import { describe, it, expect, beforeEach } from 'vitest';
+import { computeLabelPositions, resetLabelState } from './RadarCanvas';
+import type { Aircraft, LabelCondition } from '../../types/aircraft';
+
+function ac(hex: string, overrides: Partial<Aircraft> = {}): Aircraft {
+  return {
+    hex, flight: hex.toUpperCase(), r: 'N1', t: 'B738',
+    lat: 41, lon: 28, alt_baro: 35000, gs: 480, track: 0,
+    baro_rate: 0, seen: 1, phase: 'CRZ', pathHistory: [],
+    _renderLat: 41, _renderLon: 28, _lastSeen: 0,
+    ...overrides,
+  };
+}
+
+function makeRenderData(...entries: Array<[string, number, number]>) {
+  return new Map(entries.map(([hex, x, y]) => [hex, { pos: { x, y }, color: '#ffffff' }]));
+}
+
+function overlapArea(ax: number, ay: number, bx: number, by: number, w: number, h: number): number {
+  const ix = Math.max(0, Math.min(ax + w, bx + w) - Math.max(ax, bx));
+  const iy = Math.max(0, Math.min(ay + h, by + h) - Math.max(ay, by));
+  return ix * iy;
+}
+
+const BASE: {
+  width: number; height: number; pinnedHexes: Set<string>;
+  labelConditions: LabelCondition[]; panOffset: { x: number; y: number }; zoomLevel: number;
+} = {
+  width: 800, height: 600,
+  pinnedHexes: new Set(),
+  labelConditions: ['always'],
+  panOffset: { x: 0, y: 0 },
+  zoomLevel: 1,
+};
+
+describe('computeLabelPositions', () => {
+  beforeEach(() => resetLabelState());
+
+  describe('single aircraft', () => {
+    it('returns a placement for the visible aircraft', () => {
+      const result = computeLabelPositions(
+        { ...BASE, aircraft: [ac('abc')] },
+        makeRenderData(['abc', 400, 300]),
+        1,
+      );
+      expect(result.has('abc')).toBe(true);
+    });
+
+    it('places the label to the upper-right on first frame', () => {
+      const result = computeLabelPositions(
+        { ...BASE, aircraft: [ac('abc')] },
+        makeRenderData(['abc', 400, 300]),
+        1,
+      );
+      const p = result.get('abc')!;
+      // upper-right: label center-x > aircraft x, label center-y < aircraft y
+      expect(p.lx + 50).toBeGreaterThan(400);
+      expect(p.ly + 26).toBeLessThan(300);
+    });
+
+    it('returns full opacity when no overlap', () => {
+      const result = computeLabelPositions(
+        { ...BASE, aircraft: [ac('abc')] },
+        makeRenderData(['abc', 400, 300]),
+        1,
+      );
+      expect(result.get('abc')!.opacity).toBeCloseTo(1, 1);
+    });
+  });
+
+  describe('two aircraft at the same position', () => {
+    it('places them in different slots so overlap is below 50%', () => {
+      const result = computeLabelPositions(
+        { ...BASE, aircraft: [ac('aaa'), ac('bbb')] },
+        makeRenderData(['aaa', 400, 300], ['bbb', 400, 300]),
+        1,
+      );
+      const a = result.get('aaa')!;
+      const b = result.get('bbb')!;
+      const overlap = overlapArea(a.lx, a.ly, b.lx, b.ly, 100, 52);
+      expect(overlap).toBeLessThan(100 * 52 * 0.5);
+    });
+  });
+
+  describe('priority: pinned before normal', () => {
+    it('gives the pinned aircraft the preferred upper-right slot', () => {
+      const result = computeLabelPositions(
+        { ...BASE, aircraft: [ac('normal'), ac('pinned')], pinnedHexes: new Set(['pinned']) },
+        makeRenderData(['normal', 400, 300], ['pinned', 400, 300]),
+        1,
+      );
+      const pinned = result.get('pinned')!;
+      // Pinned gets upper-right: label center right of aircraft, above aircraft
+      expect(pinned.lx + 50).toBeGreaterThan(400);
+      expect(pinned.ly + 26).toBeLessThan(300);
+    });
+  });
+
+  describe('canvas edge avoidance', () => {
+    it('does not place label outside canvas bounds when aircraft is near top-left corner', () => {
+      const result = computeLabelPositions(
+        { ...BASE, aircraft: [ac('edge')] },
+        makeRenderData(['edge', 5, 5]),
+        1,
+      );
+      const p = result.get('edge')!;
+      expect(p.lx).toBeGreaterThanOrEqual(0);
+      expect(p.ly).toBeGreaterThanOrEqual(0);
+    });
+  });
+
+  describe('opacity fallback for extreme clusters', () => {
+    it('gives at least one label opacity < 1 when 5 aircraft share the same spot', () => {
+      const aircraft = ['a', 'b', 'c', 'd', 'e'].map(h => ac(h));
+      const renderData = makeRenderData(
+        ['a', 400, 300], ['b', 400, 300], ['c', 400, 300],
+        ['d', 400, 300], ['e', 400, 300],
+      );
+      const result = computeLabelPositions({ ...BASE, aircraft }, renderData, 1);
+      const opacities = [...result.values()].map(p => p.opacity);
+      expect(opacities.some(o => o < 1)).toBe(true);
+    });
+  });
+
+  describe('omits aircraft with no render data', () => {
+    it('does not include aircraft missing from renderData', () => {
+      const result = computeLabelPositions(
+        { ...BASE, aircraft: [ac('missing')] },
+        new Map(),
+        1,
+      );
+      expect(result.has('missing')).toBe(false);
+    });
+  });
+
+  describe('lerp: new aircraft initialise at target', () => {
+    it('returns same position on frame 1 and frame 2 for a stationary aircraft', () => {
+      const aircraft = [ac('stable')];
+      const renderData = makeRenderData(['stable', 400, 300]);
+      const r1 = computeLabelPositions({ ...BASE, aircraft }, renderData, 1);
+      const r2 = computeLabelPositions({ ...BASE, aircraft }, renderData, 1);
+      expect(r1.get('stable')!.lx).toBeCloseTo(r2.get('stable')!.lx, 0);
+      expect(r1.get('stable')!.ly).toBeCloseTo(r2.get('stable')!.ly, 0);
+    });
+  });
+
+  describe('lerp: stale entries are removed', () => {
+    it('does not include a gone aircraft in the next frame result', () => {
+      computeLabelPositions(
+        { ...BASE, aircraft: [ac('gone')] },
+        makeRenderData(['gone', 400, 300]),
+        1,
+      );
+      const r2 = computeLabelPositions({ ...BASE, aircraft: [] }, new Map(), 1);
+      expect(r2.has('gone')).toBe(false);
+    });
+  });
+});
