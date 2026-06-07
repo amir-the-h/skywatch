@@ -29,6 +29,7 @@ export interface RadarDrawParams {
   trailLength: number;
   labelConditions: LabelCondition[];
   airports: Airport[];
+  zoomLevel: number;
 }
 
 export function drawRadar(params: RadarDrawParams) {
