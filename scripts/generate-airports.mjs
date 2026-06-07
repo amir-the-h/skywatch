@@ -11,6 +11,12 @@ const RUNWAYS_URL  = 'https://davidmegginson.github.io/ourairports-data/runways.
 
 const KEEP_TYPES = new Set(['large_airport', 'medium_airport', 'small_airport']);
 
+async function fetchText(url) {
+  const r = await fetch(url);
+  if (!r.ok) throw new Error(`HTTP ${r.status} fetching ${url}`);
+  return r.text();
+}
+
 function parseLine(line) {
   const fields = [];
   let field = '';
@@ -47,9 +53,9 @@ function num(s) {
 
 async function main() {
   console.log('Fetching airports.csv...');
-  const airportsCsv = await fetch(AIRPORTS_URL).then((r) => r.text());
+  const airportsCsv = await fetchText(AIRPORTS_URL);
   console.log('Fetching runways.csv...');
-  const runwaysCsv = await fetch(RUNWAYS_URL).then((r) => r.text());
+  const runwaysCsv = await fetchText(RUNWAYS_URL);
 
   console.log('Parsing...');
   const airportRows = parseCSV(airportsCsv);

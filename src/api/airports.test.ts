@@ -40,4 +40,11 @@ describe('fetchAirports', () => {
     const { fetchAirports } = await import('./airports');
     await expect(fetchAirports()).rejects.toThrow('404');
   });
+
+  it('returns cached data on second call without re-fetching', async () => {
+    const { fetchAirports } = await import('./airports');
+    await fetchAirports();
+    await fetchAirports();
+    expect(vi.mocked(fetch)).toHaveBeenCalledTimes(1);
+  });
 });
