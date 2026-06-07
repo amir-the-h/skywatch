@@ -3,6 +3,7 @@ import type { Aircraft } from '../../types/aircraft';
 import { aircraftColor, lightenHsl } from '../../lib/colorSystem';
 import { getAircraftFamily, SILHOUETTE_PATHS } from '../../lib/silhouettes';
 import { latLonToCanvas } from '../../lib/geoUtils';
+import { inferFlightPhase, getPhaseColor } from '../../lib/flightPhase';
 
 export interface RadarDrawParams {
   ctx: CanvasRenderingContext2D;
@@ -34,6 +35,7 @@ export function drawRadar(params: RadarDrawParams) {
   drawGrid(params);
   drawCardinals(params);
   drawAllAircraft(params);
+  drawAircraftLabels(params);
   ctx.restore();
 }
 
@@ -104,8 +106,6 @@ function drawCardinals({ ctx, width, height, radiusKm, theme }: RadarDrawParams)
 }
 
 const AIRCRAFT_SIZE = 28;
-// Nose tip is at ~y=-85 in the viewBox "-50 -100 100 200".
-// After scale(AIRCRAFT_SIZE/200) the nose is AIRCRAFT_SIZE*0.425 px above center.
 const NOSE_OFFSET = AIRCRAFT_SIZE * 0.425;
 const HEADING_LINE_LENGTH = AIRCRAFT_SIZE * 3;
 
@@ -119,10 +119,11 @@ function drawAllAircraft(params: RadarDrawParams) {
     const color = aircraftColor(ac.t, theme);
     const family = getAircraftFamily(ac.t);
     const pathStr = SILHOUETTE_PATHS[family];
-    const isHighlighted = hoveredHex === ac.hex || pinnedHexes.has(ac.hex);
+    const isPinned = pinnedHexes.has(ac.hex);
+    const isHovered = hoveredHex === ac.hex && !isPinned;
     const isEmergency = (!!ac.emergency && ac.emergency !== 'none') || ac.squawk === '7700' || ac.squawk === '7600' || ac.squawk === '7500';
 
-    // Trail — drawn first so it appears under the aircraft
+    // Trail
     const history = pathHistory.get(ac.hex);
     if (history && history.length >= 2) {
       ctx.save();
@@ -141,7 +142,7 @@ function drawAllAircraft(params: RadarDrawParams) {
       ctx.restore();
     }
 
-    // Silhouette — outline only
+    // Silhouette
     ctx.save();
     ctx.translate(pos.x, pos.y);
     ctx.rotate((ac.track * Math.PI) / 180);
@@ -149,13 +150,21 @@ function drawAllAircraft(params: RadarDrawParams) {
 
     const p = new Path2D(pathStr);
     ctx.shadowColor = color;
-    ctx.shadowBlur = isEmergency ? 35 : isHighlighted ? 20 : 8;
+    ctx.shadowBlur = isEmergency ? 35 : isPinned ? 20 : isHovered ? 14 : 8;
+    ctx.lineWidth = isEmergency ? 6 : isPinned ? 2.5 : isHovered ? 3 : 2;
+
+    if (isPinned) {
+      ctx.globalAlpha = 0.55;
+      ctx.fillStyle = color;
+      ctx.fill(p);
+      ctx.globalAlpha = 1;
+    }
+
     ctx.strokeStyle = color;
-    ctx.lineWidth = isEmergency ? 6 : isHighlighted ? 5 : 3;
     ctx.stroke(p);
     ctx.restore();
 
-    // Heading line — from nose tip forward
+    // Heading line
     if (ac.track != null && !Number.isNaN(ac.track)) {
       const trackRad = (ac.track * Math.PI) / 180;
       const noseX = pos.x + Math.sin(trackRad) * NOSE_OFFSET;
@@ -177,5 +186,109 @@ function drawAllAircraft(params: RadarDrawParams) {
       ctx.setLineDash([]);
       ctx.restore();
     }
+  }
+}
+
+const LABEL_W = 100;
+const LABEL_H = 52;
+const LABEL_OFFSET = 40;
+
+function drawAircraftLabels(params: RadarDrawParams) {
+  const { ctx, width, height, centerLat, centerLon, radiusKm, aircraft, theme } = params;
+  const textColor = theme === 'dark' ? '#e5e7eb' : '#1f2937';
+
+  for (const ac of aircraft) {
+    const pos = latLonToCanvas(ac._renderLat, ac._renderLon, centerLat, centerLon, radiusKm, width, height);
+    if (pos.x < -20 || pos.x > width + 20 || pos.y < -20 || pos.y > height + 20) continue;
+
+    const color = aircraftColor(ac.t, theme);
+    const callsign = ac.flight || ac.hex;
+    const phase = inferFlightPhase(ac);
+    const phaseColor = getPhaseColor(phase);
+
+    // Determine label quadrant — prefer upper-right, avoid edges
+    let dx = LABEL_OFFSET;
+    let dy = -LABEL_OFFSET;
+    if (pos.x > width - LABEL_W - 20) dx = -(LABEL_W + LABEL_OFFSET);
+    if (pos.y < LABEL_H + 20) dy = LABEL_OFFSET;
+
+    const lx = pos.x + dx;
+    const ly = pos.y + dy;
+
+    // Connector line: aircraft center → nearest corner of label box
+    const connX = dx > 0 ? lx : lx + LABEL_W;
+    const connY = dy > 0 ? ly : ly + LABEL_H;
+
+    ctx.save();
+    ctx.setLineDash([3, 3]);
+    ctx.strokeStyle = color;
+    ctx.lineWidth = 1;
+    ctx.globalAlpha = 0.6;
+    ctx.shadowBlur = 0;
+    ctx.beginPath();
+    ctx.moveTo(pos.x, pos.y);
+    ctx.lineTo(connX, connY);
+    ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.restore();
+
+    // Label background
+    ctx.save();
+    ctx.shadowBlur = 0;
+    ctx.globalAlpha = 1;
+    ctx.fillStyle = 'rgba(10, 11, 15, 0.82)';
+    ctx.beginPath();
+    ctx.roundRect(lx, ly, LABEL_W, LABEL_H, 5);
+    ctx.fill();
+    ctx.strokeStyle = color;
+    ctx.lineWidth = 1.2;
+    ctx.stroke();
+
+    // Callsign
+    ctx.fillStyle = color;
+    ctx.font = 'bold 9.5px monospace';
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'top';
+    ctx.fillText(callsign, lx + 7, ly + 7);
+
+    // Altitude + trend arrow
+    const altText = `${ac.alt_baro.toLocaleString()} ft`;
+    ctx.fillStyle = textColor;
+    ctx.font = '8.5px monospace';
+    ctx.fillText(altText, lx + 7, ly + 22);
+
+    const trendArrow = ac.baro_rate > 100 ? '▲' : ac.baro_rate < -100 ? '▼' : '—';
+    const trendColor = ac.baro_rate > 100 ? '#4ade80' : ac.baro_rate < -100 ? '#f87171' : '#9ca3af';
+    const altWidth = ctx.measureText(altText).width;
+    ctx.fillStyle = trendColor;
+    ctx.font = 'bold 10px monospace';
+    ctx.fillText(trendArrow, lx + 7 + altWidth + 3, ly + 21);
+
+    // Speed
+    ctx.fillStyle = '#9ca3af';
+    ctx.font = '8px monospace';
+    ctx.fillText(`${Math.round(ac.gs)} kts`, lx + 7, ly + 36);
+
+    // Phase badge
+    const BADGE_W = 28;
+    const BADGE_H = 12;
+    const badgeX = lx + LABEL_W - BADGE_W - 5;
+    const badgeY = ly + LABEL_H - BADGE_H - 4;
+
+    ctx.fillStyle = phaseColor + '33';
+    ctx.strokeStyle = phaseColor + '80';
+    ctx.lineWidth = 0.8;
+    ctx.beginPath();
+    ctx.roundRect(badgeX, badgeY, BADGE_W, BADGE_H, 3);
+    ctx.fill();
+    ctx.stroke();
+
+    ctx.fillStyle = phaseColor;
+    ctx.font = '7px monospace';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(phase, badgeX + BADGE_W / 2, badgeY + BADGE_H / 2);
+
+    ctx.restore();
   }
 }
