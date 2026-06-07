@@ -47,7 +47,8 @@ export function AircraftMarker({ aircraft }: Props) {
           </defs>
           <path
             d="${path}"
-            fill="none"
+            fill="${color}"
+            fill-opacity="0.6"
             stroke="${color}"
             stroke-width="3"
             filter="url(#glow-${aircraft.hex})"
