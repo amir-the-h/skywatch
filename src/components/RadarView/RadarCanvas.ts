@@ -6,6 +6,7 @@ import { getAircraftFamily, SILHOUETTE_PATHS } from '../../lib/silhouettes';
 import { latLonToCanvas } from '../../lib/geoUtils';
 import { inferFlightPhase, getPhaseColor } from '../../lib/flightPhase';
 import { shouldShowLabel } from '../../lib/labelVisibility';
+import { iconScaleForZoom, screenPosToCull } from './zoomScale';
 
 interface AircraftRenderData {
   pos: { x: number; y: number };
@@ -187,13 +188,18 @@ const NOSE_OFFSET = AIRCRAFT_SIZE * 0.425;
 const HEADING_LINE_LENGTH = AIRCRAFT_SIZE * 3;
 
 function drawAllAircraft(params: RadarDrawParams): Map<string, AircraftRenderData> {
-  const { ctx, width, height, centerLat, centerLon, radiusKm, aircraft, hoveredHex, pinnedHexes, theme, pathHistory, trailLength } = params;
+  const { ctx, width, height, centerLat, centerLon, radiusKm, aircraft, hoveredHex, pinnedHexes, theme, pathHistory, trailLength, panOffset, zoomLevel } = params;
 
   const renderData = new Map<string, AircraftRenderData>();
+  const iconScale = iconScaleForZoom(zoomLevel);
+  const scaledSize = AIRCRAFT_SIZE * iconScale;
+  const noseOffset = scaledSize * 0.425;
+  const headingLineLength = scaledSize * 3;
+  const cullPadding = scaledSize * 1.5;
 
   for (const ac of aircraft) {
     const pos = latLonToCanvas(ac._renderLat, ac._renderLon, centerLat, centerLon, radiusKm, width, height);
-    if (pos.x < -20 || pos.x > width + 20 || pos.y < -20 || pos.y > height + 20) continue;
+    if (screenPosToCull(pos.x, pos.y, panOffset.x, panOffset.y, width, height, cullPadding)) continue;
 
     const color = aircraftColor(ac.t, theme);
     renderData.set(ac.hex, { pos, color });
@@ -203,7 +209,7 @@ function drawAllAircraft(params: RadarDrawParams): Map<string, AircraftRenderDat
     const isHovered = hoveredHex === ac.hex && !isPinned;
     const isEmergency = (!!ac.emergency && ac.emergency !== 'none') || ac.squawk === '7700' || ac.squawk === '7600' || ac.squawk === '7500';
 
-    // Trail — slice to configured length
+    // Trail
     const fullHistory = pathHistory.get(ac.hex);
     const history = fullHistory && trailLength > 0 ? fullHistory.slice(-trailLength) : [];
     if (history.length >= 2) {
@@ -227,7 +233,7 @@ function drawAllAircraft(params: RadarDrawParams): Map<string, AircraftRenderDat
     ctx.save();
     ctx.translate(pos.x, pos.y);
     ctx.rotate((ac.track * Math.PI) / 180);
-    ctx.scale(AIRCRAFT_SIZE / 200, AIRCRAFT_SIZE / 200);
+    ctx.scale(scaledSize / 200, scaledSize / 200);
 
     const p = new Path2D(pathStr);
     ctx.shadowColor = color;
@@ -248,8 +254,8 @@ function drawAllAircraft(params: RadarDrawParams): Map<string, AircraftRenderDat
     // Heading line
     if (ac.track != null && !Number.isNaN(ac.track)) {
       const trackRad = (ac.track * Math.PI) / 180;
-      const noseX = pos.x + Math.sin(trackRad) * NOSE_OFFSET;
-      const noseY = pos.y - Math.cos(trackRad) * NOSE_OFFSET;
+      const noseX = pos.x + Math.sin(trackRad) * noseOffset;
+      const noseY = pos.y - Math.cos(trackRad) * noseOffset;
 
       ctx.save();
       ctx.setLineDash([4, 6]);
@@ -260,8 +266,8 @@ function drawAllAircraft(params: RadarDrawParams): Map<string, AircraftRenderDat
       ctx.beginPath();
       ctx.moveTo(noseX, noseY);
       ctx.lineTo(
-        noseX + Math.sin(trackRad) * HEADING_LINE_LENGTH,
-        noseY - Math.cos(trackRad) * HEADING_LINE_LENGTH
+        noseX + Math.sin(trackRad) * headingLineLength,
+        noseY - Math.cos(trackRad) * headingLineLength
       );
       ctx.stroke();
       ctx.setLineDash([]);
