@@ -74,10 +74,10 @@ export function RadarView() {
     setIsTransformed(false);
   }, []);
 
-  // Reset zoom when radius changes
+  // Reset zoom and pan when radius changes
   useEffect(() => {
-    zoomLevelRef.current = 1;
-  }, [radiusKm]);
+    resetView();
+  }, [radiusKm, resetView]);
 
   const [hoverPos, setHoverPos] = useState<{ x: number; y: number } | null>(null);
   const hoveredAircraft = hoveredHex ? aircraftMap.get(hoveredHex) : null;
@@ -238,6 +238,7 @@ export function RadarView() {
               x: e.clientX - dragStartRef.current.x,
               y: e.clientY - dragStartRef.current.y,
             };
+            setIsTransformed(true);
             return;
           }
           setHoverPos({ x: e.clientX, y: e.clientY });
