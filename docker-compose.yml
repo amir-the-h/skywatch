@@ -1,0 +1,26 @@
+services:
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+
+  backend:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    restart: unless-stopped
+    environment:
+      REDIS_URL: redis://redis:6379
+      POLL_INTERVAL_MS: "1000"
+      AIRPLANES_LIVE_BASE: https://api.airplanes.live/v2/point
+      PORT: "3001"
+    depends_on:
+      - redis
+
+  frontend:
+    build:
+      context: .
+      args:
+        VITE_BACKEND_URL: https://skywatch.the-h.me
+    restart: unless-stopped
+    depends_on:
+      - backend
