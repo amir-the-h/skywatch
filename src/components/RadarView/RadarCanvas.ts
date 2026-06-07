@@ -1,6 +1,6 @@
 // src/components/RadarView/RadarCanvas.ts
 import type { Aircraft } from '../../types/aircraft';
-import { aircraftColor } from '../../lib/colorSystem';
+import { aircraftColor, lightenHsl } from '../../lib/colorSystem';
 import { getAircraftFamily, SILHOUETTE_PATHS } from '../../lib/silhouettes';
 import { latLonToCanvas } from '../../lib/geoUtils';
 
@@ -16,6 +16,7 @@ export interface RadarDrawParams {
   hoveredHex: string | null;
   pinnedHexes: Set<string>;
   theme: 'dark' | 'light';
+  pathHistory: Map<string, { lat: number; lon: number }[]>;
 }
 
 export function drawRadar(params: RadarDrawParams) {
@@ -64,7 +65,6 @@ function drawGrid({ ctx, width, height, radiusKm, theme }: RadarDrawParams) {
   const stepKm = radiusKm / 4;
 
   for (let i = -4; i <= 4; i++) {
-    // Horizontal lines (latitude)
     const dyKm = i * stepKm;
     const y = height / 2 - dyKm * scale;
     ctx.beginPath();
@@ -72,7 +72,6 @@ function drawGrid({ ctx, width, height, radiusKm, theme }: RadarDrawParams) {
     ctx.lineTo(width, y);
     ctx.stroke();
 
-    // Vertical lines (longitude) — equal km spacing, same as horizontal
     const dxKm = i * stepKm;
     const x = width / 2 + dxKm * scale;
     ctx.beginPath();
@@ -101,9 +100,13 @@ function drawCardinals({ ctx, width, height, radiusKm, theme }: RadarDrawParams)
 }
 
 const AIRCRAFT_SIZE = 28;
+// Nose tip is at ~y=-85 in the viewBox "-50 -100 100 200".
+// After scale(AIRCRAFT_SIZE/200) the nose is AIRCRAFT_SIZE*0.425 px above center.
+const NOSE_OFFSET = AIRCRAFT_SIZE * 0.425;
+const HEADING_LINE_LENGTH = AIRCRAFT_SIZE * 3;
 
 function drawAllAircraft(params: RadarDrawParams) {
-  const { ctx, width, height, centerLat, centerLon, radiusKm, aircraft, hoveredHex, pinnedHexes, theme } = params;
+  const { ctx, width, height, centerLat, centerLon, radiusKm, aircraft, hoveredHex, pinnedHexes, theme, pathHistory } = params;
 
   for (const ac of aircraft) {
     const pos = latLonToCanvas(ac._renderLat, ac._renderLon, centerLat, centerLon, radiusKm, width, height);
@@ -115,20 +118,60 @@ function drawAllAircraft(params: RadarDrawParams) {
     const isHighlighted = hoveredHex === ac.hex || pinnedHexes.has(ac.hex);
     const isEmergency = (!!ac.emergency && ac.emergency !== 'none') || ac.squawk === '7700' || ac.squawk === '7600' || ac.squawk === '7500';
 
+    // Trail — drawn first so it appears under the aircraft
+    const history = pathHistory.get(ac.hex);
+    if (history && history.length >= 2) {
+      ctx.save();
+      ctx.strokeStyle = lightenHsl(color, 0.2);
+      ctx.lineWidth = 1.5;
+      ctx.globalAlpha = 0.8;
+      ctx.shadowBlur = 0;
+      ctx.beginPath();
+      let first = true;
+      for (const { lat, lon } of history) {
+        const p = latLonToCanvas(lat, lon, centerLat, centerLon, radiusKm, width, height);
+        if (first) { ctx.moveTo(p.x, p.y); first = false; }
+        else ctx.lineTo(p.x, p.y);
+      }
+      ctx.stroke();
+      ctx.restore();
+    }
+
+    // Silhouette — outline only
     ctx.save();
     ctx.translate(pos.x, pos.y);
     ctx.rotate((ac.track * Math.PI) / 180);
-    // viewBox is 100x200; scale to AIRCRAFT_SIZE
     ctx.scale(AIRCRAFT_SIZE / 200, AIRCRAFT_SIZE / 200);
 
     const p = new Path2D(pathStr);
-
     ctx.shadowColor = color;
     ctx.shadowBlur = isEmergency ? 35 : isHighlighted ? 20 : 8;
     ctx.strokeStyle = color;
     ctx.lineWidth = isEmergency ? 6 : isHighlighted ? 5 : 3;
     ctx.stroke(p);
-
     ctx.restore();
+
+    // Heading line — from nose tip forward
+    if (ac.track != null && !Number.isNaN(ac.track)) {
+      const trackRad = (ac.track * Math.PI) / 180;
+      const noseX = pos.x + Math.sin(trackRad) * NOSE_OFFSET;
+      const noseY = pos.y - Math.cos(trackRad) * NOSE_OFFSET;
+
+      ctx.save();
+      ctx.setLineDash([4, 6]);
+      ctx.strokeStyle = color;
+      ctx.lineWidth = 1.5;
+      ctx.globalAlpha = 0.7;
+      ctx.shadowBlur = 0;
+      ctx.beginPath();
+      ctx.moveTo(noseX, noseY);
+      ctx.lineTo(
+        noseX + Math.sin(trackRad) * HEADING_LINE_LENGTH,
+        noseY - Math.cos(trackRad) * HEADING_LINE_LENGTH
+      );
+      ctx.stroke();
+      ctx.setLineDash([]);
+      ctx.restore();
+    }
   }
 }
