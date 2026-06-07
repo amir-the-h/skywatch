@@ -2,8 +2,8 @@ import { create } from 'zustand';
 import type { FlightPhase } from '../lib/flightPhase';
 import type { FilterCriteria } from '../lib/aircraftFilter';
 
-const DEFAULT_ALT_MIN = 0;
-const DEFAULT_ALT_MAX = 60000;
+export const DEFAULT_ALT_MIN = 0;
+export const DEFAULT_ALT_MAX = 60000;
 
 const DEFAULT_FILTER: FilterCriteria = {
   callsign: '',
@@ -14,7 +14,7 @@ const DEFAULT_FILTER: FilterCriteria = {
   model: '',
 };
 
-interface FilterStore extends FilterCriteria {
+export interface FilterStore extends FilterCriteria {
   setCallsign: (v: string) => void;
   setAltRange: (min: number, max: number) => void;
   setPhases: (phases: FlightPhase[]) => void;
