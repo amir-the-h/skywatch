@@ -59,6 +59,8 @@ export interface Settings {
   ringIntervals: number[];  // km, for radar view
   trailLength: number;      // how many path-history points to draw (0–50)
   labelConditions: LabelCondition[];
+  showAirports: boolean;
+  airportTypes: ('large_airport' | 'medium_airport' | 'small_airport')[];
 }
 
 export const DEFAULT_SETTINGS: Settings = {
@@ -72,4 +74,6 @@ export const DEFAULT_SETTINGS: Settings = {
   ringIntervals: [25, 50, 100, 150],
   trailLength: 50,
   labelConditions: ['always'],
+  showAirports: true,
+  airportTypes: ['large_airport', 'medium_airport'],
 };
