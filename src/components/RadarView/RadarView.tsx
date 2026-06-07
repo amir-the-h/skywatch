@@ -61,6 +61,7 @@ export function RadarView() {
   useEffect(() => { airportsRef.current = airports; }, [airports]);
 
   const [hoveredAirport, setHoveredAirport] = useState<Airport | null>(null);
+  const [zoomScale, setZoomScale] = useState(1);
 
   // Reset zoom when radius changes
   useEffect(() => {
@@ -127,6 +128,7 @@ export function RadarView() {
             : e.deltaY;
       const oldZoom = zoomLevelRef.current;
       zoomLevelRef.current = applyZoom(oldZoom, normalizedDeltaY);
+      setZoomScale(Math.sqrt(zoomLevelRef.current));
       const f = zoomLevelRef.current / oldZoom;
       if (f === 1) return;
       // Keep the point under the cursor fixed as zoom changes
@@ -265,11 +267,12 @@ export function RadarView() {
           }
           zoomLevelRef.current = 1;
           panOffsetRef.current = { x: 0, y: 0 };
+          setZoomScale(1);
         }}
       />
 
       {hoveredAircraft && hoverPos && !pinnedHexes.has(hoveredAircraft.hex) && (
-        <FlightPreview aircraft={hoveredAircraft} x={hoverPos.x} y={hoverPos.y} />
+        <FlightPreview aircraft={hoveredAircraft} x={hoverPos.x} y={hoverPos.y} scale={zoomScale} />
       )}
 
       {hoveredAirport && hoverPos && (
