@@ -101,6 +101,7 @@ export function RadarView() {
         trailLength: trailLengthRef.current,
         labelConditions: labelConditionsRef.current,
         airports: airportsRef.current,
+        zoomLevel: zoomLevelRef.current,
       });
       rafRef.current = requestAnimationFrame(loop);
     };
