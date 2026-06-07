@@ -126,6 +126,7 @@ function drawAirports(params: RadarDrawParams) {
     const center = latLonToCanvas(airport.lat, airport.lon, centerLat, centerLon, radiusKm, width, height);
 
     if (airport.runways.length === 0) {
+      ctx.save();
       ctx.beginPath();
       ctx.arc(center.x, center.y, 3, 0, Math.PI * 2);
       ctx.fillStyle = 'rgba(74, 222, 128, 0.7)';
@@ -135,6 +136,7 @@ function drawAirports(params: RadarDrawParams) {
       ctx.textAlign = 'left';
       ctx.textBaseline = 'top';
       ctx.fillText(airport.iata || airport.icao, center.x + 5, center.y - 10);
+      ctx.restore();
       continue;
     }
 

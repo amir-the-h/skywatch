@@ -11,6 +11,10 @@ import { latLonToCanvas } from '../../lib/geoUtils';
 import { applyZoom } from './viewTransform';
 import { useFilterStore } from '../../store/filterStore';
 import { matchesFilter } from '../../lib/aircraftFilter';
+import { useAirports } from '../../hooks/useAirports';
+import { findClosestAirport } from '../../lib/geoUtils';
+import { AirportPreview } from './AirportPreview';
+import type { Airport } from '../../types/airport';
 
 export function RadarView() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -52,6 +56,12 @@ export function RadarView() {
   const filtersRef = useRef(filters);
   useEffect(() => { filtersRef.current = filters; }, [filters]);
 
+  const { airports } = useAirports();
+  const airportsRef = useRef<Airport[]>([]);
+  useEffect(() => { airportsRef.current = airports; }, [airports]);
+
+  const [hoveredAirport, setHoveredAirport] = useState<Airport | null>(null);
+
   // Reset zoom when radius changes
   useEffect(() => {
     zoomLevelRef.current = 1;
@@ -90,6 +100,7 @@ export function RadarView() {
         panOffset: panOffsetRef.current,
         trailLength: trailLengthRef.current,
         labelConditions: labelConditionsRef.current,
+        airports: airportsRef.current,
       });
       rafRef.current = requestAnimationFrame(loop);
     };
@@ -170,6 +181,25 @@ export function RadarView() {
     [aircraftMap]
   );
 
+  const hitTestAirport = useCallback(
+    (clientX: number, clientY: number): Airport | null => {
+      const canvas = canvasRef.current;
+      if (!canvas) return null;
+      const rect = canvas.getBoundingClientRect();
+      const mx = clientX - rect.left - panOffsetRef.current.x;
+      const my = clientY - rect.top - panOffsetRef.current.y;
+      const effectiveRadius = radiusKmRef.current / zoomLevelRef.current;
+      return findClosestAirport(
+        airportsRef.current,
+        mx, my,
+        latRef.current, lngRef.current,
+        effectiveRadius,
+        canvas.width, canvas.height
+      );
+    },
+    []
+  );
+
   return (
     <div className="radar-container">
       <canvas
@@ -196,7 +226,13 @@ export function RadarView() {
             return;
           }
           setHoverPos({ x: e.clientX, y: e.clientY });
-          setHovered(hitTest(e.clientX, e.clientY));
+          const hex = hitTest(e.clientX, e.clientY);
+          setHovered(hex);
+          if (!hex) {
+            setHoveredAirport(hitTestAirport(e.clientX, e.clientY));
+          } else {
+            setHoveredAirport(null);
+          }
         }}
         onMouseUp={(e) => {
           if (isDraggingRef.current) {
@@ -218,6 +254,7 @@ export function RadarView() {
           e.currentTarget.style.cursor = 'default';
           setHovered(null);
           setHoverPos(null);
+          setHoveredAirport(null);
         }}
         onDoubleClick={() => {
           if (pinTimeoutRef.current) {
@@ -231,6 +268,10 @@ export function RadarView() {
 
       {hoveredAircraft && hoverPos && !pinnedHexes.has(hoveredAircraft.hex) && (
         <FlightPreview aircraft={hoveredAircraft} x={hoverPos.x} y={hoverPos.y} />
+      )}
+
+      {hoveredAirport && hoverPos && (
+        <AirportPreview airport={hoveredAirport} x={hoverPos.x} y={hoverPos.y} />
       )}
 
       <div className="bubbles-container">
