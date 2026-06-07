@@ -37,32 +37,29 @@ describe('applyPan', () => {
 });
 
 describe('applyZoom', () => {
-  const W = 800, H = 800;
-  const centerLat = 0, centerLon = 0, radiusKm = 100;
-
   it('zooming in (negative deltaY) increases zoomLevel', () => {
-    const result = applyZoom(1, { dLat: 0, dLon: 0 }, 0, 0, W, H, centerLat, centerLon, radiusKm, -100);
+    const result = applyZoom(1, { dLat: 0, dLon: 0 }, -100);
     expect(result.zoomLevel).toBeGreaterThan(1);
   });
 
   it('zooming out (positive deltaY) decreases zoomLevel', () => {
-    const result = applyZoom(1, { dLat: 0, dLon: 0 }, 0, 0, W, H, centerLat, centerLon, radiusKm, 100);
+    const result = applyZoom(1, { dLat: 0, dLon: 0 }, 100);
     expect(result.zoomLevel).toBeLessThan(1);
   });
 
-  it('zooming at canvas center (mx=0, my=0) does not change panOffset', () => {
-    const result = applyZoom(1, { dLat: 0, dLon: 0 }, 0, 0, W, H, centerLat, centerLon, radiusKm, -200);
-    expect(result.panOffset.dLat).toBeCloseTo(0, 5);
-    expect(result.panOffset.dLon).toBeCloseTo(0, 5);
+  it('never changes panOffset', () => {
+    const offset = { dLat: 1.5, dLon: -2.3 };
+    const result = applyZoom(1, offset, -200);
+    expect(result.panOffset).toBe(offset);
   });
 
   it('clamps zoomLevel to minimum 0.25', () => {
-    const result = applyZoom(0.26, { dLat: 0, dLon: 0 }, 0, 0, W, H, centerLat, centerLon, radiusKm, 100000);
+    const result = applyZoom(0.26, { dLat: 0, dLon: 0 }, 100000);
     expect(result.zoomLevel).toBeGreaterThanOrEqual(0.25);
   });
 
   it('clamps zoomLevel to maximum 20', () => {
-    const result = applyZoom(19.9, { dLat: 0, dLon: 0 }, 0, 0, W, H, centerLat, centerLon, radiusKm, -100000);
+    const result = applyZoom(19.9, { dLat: 0, dLon: 0 }, -100000);
     expect(result.zoomLevel).toBeLessThanOrEqual(20);
   });
 });
