@@ -184,8 +184,6 @@ function drawAirports(params: RadarDrawParams) {
 }
 
 const AIRCRAFT_SIZE = 28;
-const NOSE_OFFSET = AIRCRAFT_SIZE * 0.425;
-const HEADING_LINE_LENGTH = AIRCRAFT_SIZE * 3;
 
 function drawAllAircraft(params: RadarDrawParams): Map<string, AircraftRenderData> {
   const { ctx, width, height, centerLat, centerLon, radiusKm, aircraft, hoveredHex, pinnedHexes, theme, pathHistory, trailLength, panOffset, zoomLevel } = params;
