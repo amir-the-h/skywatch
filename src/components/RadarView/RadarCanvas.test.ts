@@ -1,4 +1,8 @@
 // src/components/RadarView/RadarCanvas.test.ts
+// LABEL_W=100, LABEL_H=52 are private constants in RadarCanvas.ts — hardcoded here accordingly
+const LABEL_HALF_W = 50;  // LABEL_W / 2
+const LABEL_HALF_H = 26;  // LABEL_H / 2
+
 import { describe, it, expect, beforeEach } from 'vitest';
 import { computeLabelPositions, resetLabelState } from './RadarCanvas';
 import type { Aircraft, LabelCondition } from '../../types/aircraft';
@@ -17,6 +21,7 @@ function makeRenderData(...entries: Array<[string, number, number]>) {
   return new Map(entries.map(([hex, x, y]) => [hex, { pos: { x, y }, color: '#ffffff' }]));
 }
 
+// assumes both rects have the same w×h (both are LABEL_W×LABEL_H)
 function overlapArea(ax: number, ay: number, bx: number, by: number, w: number, h: number): number {
   const ix = Math.max(0, Math.min(ax + w, bx + w) - Math.max(ax, bx));
   const iy = Math.max(0, Math.min(ay + h, by + h) - Math.max(ay, by));
@@ -55,8 +60,8 @@ describe('computeLabelPositions', () => {
       );
       const p = result.get('abc')!;
       // upper-right: label center-x > aircraft x, label center-y < aircraft y
-      expect(p.lx + 50).toBeGreaterThan(400);
-      expect(p.ly + 26).toBeLessThan(300);
+      expect(p.lx + LABEL_HALF_W).toBeGreaterThan(400);
+      expect(p.ly + LABEL_HALF_H).toBeLessThan(300);
     });
 
     it('returns full opacity when no overlap', () => {
@@ -92,8 +97,8 @@ describe('computeLabelPositions', () => {
       );
       const pinned = result.get('pinned')!;
       // Pinned gets upper-right: label center right of aircraft, above aircraft
-      expect(pinned.lx + 50).toBeGreaterThan(400);
-      expect(pinned.ly + 26).toBeLessThan(300);
+      expect(pinned.lx + LABEL_HALF_W).toBeGreaterThan(400);
+      expect(pinned.ly + LABEL_HALF_H).toBeLessThan(300);
     });
   });
 
@@ -108,6 +113,17 @@ describe('computeLabelPositions', () => {
       expect(p.lx).toBeGreaterThanOrEqual(0);
       expect(p.ly).toBeGreaterThanOrEqual(0);
     });
+
+    it('does not place label outside canvas bounds when aircraft is near bottom-right corner', () => {
+      const result = computeLabelPositions(
+        { ...BASE, aircraft: [ac('edge-br')] },
+        makeRenderData(['edge-br', 795, 595]),
+        1,
+      );
+      const p = result.get('edge-br')!;
+      expect(p.lx + 100).toBeLessThanOrEqual(800);
+      expect(p.ly + 52).toBeLessThanOrEqual(600);
+    });
   });
 
   describe('opacity fallback for extreme clusters', () => {
@@ -119,7 +135,7 @@ describe('computeLabelPositions', () => {
       );
       const result = computeLabelPositions({ ...BASE, aircraft }, renderData, 1);
       const opacities = [...result.values()].map(p => p.opacity);
-      expect(opacities.some(o => o < 1)).toBe(true);
+      expect(opacities.filter(o => o < 1).length).toBeGreaterThanOrEqual(2);
     });
   });
 
@@ -139,9 +155,10 @@ describe('computeLabelPositions', () => {
       const aircraft = [ac('stable')];
       const renderData = makeRenderData(['stable', 400, 300]);
       const r1 = computeLabelPositions({ ...BASE, aircraft }, renderData, 1);
+      // New aircraft snap to target on first frame (no lerp), so position is identical on frame 2
       const r2 = computeLabelPositions({ ...BASE, aircraft }, renderData, 1);
-      expect(r1.get('stable')!.lx).toBeCloseTo(r2.get('stable')!.lx, 0);
-      expect(r1.get('stable')!.ly).toBeCloseTo(r2.get('stable')!.ly, 0);
+      expect(r1.get('stable')!.lx).toBe(r2.get('stable')!.lx);
+      expect(r1.get('stable')!.ly).toBe(r2.get('stable')!.ly);
     });
   });
 
