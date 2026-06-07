@@ -92,6 +92,24 @@ export function SettingsModal({ onClose }: Props) {
             <span>{settings.refreshInterval}s</span>
           </label>
 
+          <div className="modal-section-title">Display</div>
+
+          <label>
+            Trail length
+            <input
+              type="range"
+              min={0}
+              max={50}
+              value={settings.trailLength}
+              onChange={(e) => settings.update({ trailLength: parseInt(e.target.value) })}
+            />
+            <span>
+              {settings.trailLength === 0
+                ? 'Hidden'
+                : `${settings.trailLength} pts · ≈${Math.round(settings.trailLength * settings.refreshInterval / 60)} min`}
+            </span>
+          </label>
+
           <label>
             Theme
             <select
