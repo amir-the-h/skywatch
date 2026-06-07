@@ -11,7 +11,6 @@ import { latLonToCanvas } from '../../lib/geoUtils';
 import { applyZoom } from './viewTransform';
 import { useFilterStore } from '../../store/filterStore';
 import { matchesFilter } from '../../lib/aircraftFilter';
-import { FilterDrawer } from '../FilterDrawer/FilterDrawer';
 
 export function RadarView() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -242,7 +241,6 @@ export function RadarView() {
           return <FlightBubble key={hex} aircraft={ac} color={color} />;
         })}
       </div>
-      <FilterDrawer />
     </div>
   );
 }

@@ -11,7 +11,6 @@ import { FlightBubble } from '../FlightBubble/FlightBubble';
 import { interpolatePosition } from '../../lib/interpolate';
 import { useFilterStore } from '../../store/filterStore';
 import { matchesFilter } from '../../lib/aircraftFilter';
-import { FilterDrawer } from '../FilterDrawer/FilterDrawer';
 import { aircraftColor } from '../../lib/colorSystem';
 
 const OSM_TILES = 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png';
@@ -88,7 +87,6 @@ export function MapView() {
         })}
       </div>
 
-      <FilterDrawer />
     </div>
   );
 }

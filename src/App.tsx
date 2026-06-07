@@ -6,6 +6,7 @@ import { useAircraftStore } from './store/aircraftStore';
 import { MapView } from './components/MapView/MapView';
 import { RadarView } from './components/RadarView/RadarView';
 import { SettingsModal } from './components/SettingsPanel/SettingsModal';
+import { FilterDrawer } from './components/FilterDrawer/FilterDrawer';
 
 function StatusChip() {
   const lastUpdated = useAircraftStore((s) => s.lastUpdated);
@@ -100,6 +101,8 @@ export default function App() {
           <StatusChip />
         </div>
       </div>
+
+      <FilterDrawer />
 
       {showSettings && <SettingsModal onClose={() => setShowSettings(false)} />}
     </>
