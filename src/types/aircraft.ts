@@ -58,6 +58,7 @@ export interface Settings {
   view: 'map' | 'radar';
   ringIntervals: number[];  // km, for radar view
   trailLength: number;      // how many path-history points to draw (0–50)
+  labelConditions: LabelCondition[];
 }
 
 export const DEFAULT_SETTINGS: Settings = {
@@ -70,4 +71,5 @@ export const DEFAULT_SETTINGS: Settings = {
   view: 'map',
   ringIntervals: [25, 50, 100, 150],
   trailLength: 50,
+  labelConditions: ['always'],
 };

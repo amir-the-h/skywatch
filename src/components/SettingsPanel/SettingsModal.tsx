@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useSettingsStore } from '../../hooks/useSettings';
+import type { LabelCondition } from '../../types/aircraft';
 
 interface Props {
   onClose: () => void;
@@ -9,6 +10,19 @@ export function SettingsModal({ onClose }: Props) {
   const settings = useSettingsStore();
   const [geoStatus, setGeoStatus] = useState<'idle' | 'loading' | 'error'>('idle');
   const [ringText, setRingText] = useState(settings.ringIntervals.join(', '));
+
+  function toggleCondition(condition: LabelCondition) {
+    if (condition === 'always') {
+      const next = settings.labelConditions.includes('always') ? [] : ['always' as LabelCondition];
+      settings.update({ labelConditions: next });
+      return;
+    }
+    const without = settings.labelConditions.filter((c) => c !== 'always' && c !== condition);
+    const next = settings.labelConditions.includes(condition)
+      ? without
+      : [...without, condition];
+    settings.update({ labelConditions: next });
+  }
 
   function handleGeolocate() {
     if (!navigator.geolocation) {
@@ -109,6 +123,30 @@ export function SettingsModal({ onClose }: Props) {
                 : `${settings.trailLength} pts · ≈${Math.round(settings.trailLength * settings.refreshInterval / 60)} min`}
             </span>
           </label>
+
+          <div className="modal-section-title">Labels</div>
+
+          {(['always', 'airport', 'emergency', 'pinned'] as LabelCondition[]).map((cond) => {
+            const checked = settings.labelConditions.includes(cond);
+            const disabled = cond !== 'always' && settings.labelConditions.includes('always');
+            const labels: Record<LabelCondition, string> = {
+              always: 'Always (show all)',
+              airport: 'Airport ops (taxi / T/O / landing)',
+              emergency: 'Emergency / unusual squawk',
+              pinned: 'Pinned aircraft',
+            };
+            return (
+              <label key={cond} className={disabled ? 'label-disabled' : ''}>
+                <input
+                  type="checkbox"
+                  checked={checked}
+                  disabled={disabled}
+                  onChange={() => toggleCondition(cond)}
+                />
+                {labels[cond]}
+              </label>
+            );
+          })}
 
           <label>
             Theme
