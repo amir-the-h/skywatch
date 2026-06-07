@@ -54,7 +54,7 @@ export function FlightBubble({ aircraft, color }: Props) {
       </div>
 
       {hasRoute && (
-        <div className="bubble-route" style={{ borderColor: 'rgba(255,255,255,0.08)', background: 'rgba(255,255,255,0.04)' }}>
+        <div className="bubble-route" style={{ borderColor: `color-mix(in srgb, ${color} 20%, transparent)`, background: `color-mix(in srgb, ${color} 7%, transparent)` }}>
           <span className="route-codes">
             {aircraft.orig_iata ?? '?'}
             <span className="route-arrow"> → </span>
