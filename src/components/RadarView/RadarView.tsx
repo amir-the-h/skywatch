@@ -13,6 +13,7 @@ export function RadarView() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const rafRef = useRef<number>(0);
   const { lat, lng, radiusKm, ringIntervals, theme } = useSettingsStore();
+  const update = useSettingsStore((s) => s.update);
   const aircraftMap = useAircraftStore((s) => s.aircraft);
   const pinnedHexes = useAircraftStore((s) => s.pinnedHexes);
   const hoveredHex = useAircraftStore((s) => s.hoveredHex);
@@ -45,11 +46,15 @@ export function RadarView() {
     radiusKmRef.current = radiusKm;
   }, [lat, lng, radiusKm]);
 
-  // Reset pan/zoom whenever the user changes settings
+  // When settings lat/lng change externally (settings UI), zero any pending pan offset
   useEffect(() => {
     panOffsetRef.current = { dLat: 0, dLon: 0 };
+  }, [lat, lng]);
+
+  // When radius changes, reset zoom so scale stays sensible
+  useEffect(() => {
     zoomLevelRef.current = 1;
-  }, [lat, lng, radiusKm]);
+  }, [radiusKm]);
 
   const [hoverPos, setHoverPos] = useState<{ x: number; y: number } | null>(null);
   const hoveredAircraft = hoveredHex ? aircraftMap.get(hoveredHex) : null;
@@ -198,7 +203,14 @@ export function RadarView() {
           isDragging.current = false;
           hasMoved.current = false;
           setCursor('grab');
-          if (!wasDrag) {
+          if (wasDrag) {
+            const { dLat, dLon } = panOffsetRef.current;
+            update({
+              lat: parseFloat((latRef.current + dLat).toFixed(6)),
+              lng: parseFloat((lngRef.current + dLon).toFixed(6)),
+            });
+            panOffsetRef.current = { dLat: 0, dLon: 0 };
+          } else {
             const hex = hitTest(e.clientX, e.clientY);
             if (hex) {
               if (pinTimeoutRef.current) clearTimeout(pinTimeoutRef.current);
@@ -210,17 +222,25 @@ export function RadarView() {
           }
         }}
         onMouseLeave={() => {
+          const wasMoving = hasMoved.current;
           isDragging.current = false;
           hasMoved.current = false;
           setCursor('grab');
           setHovered(null);
+          if (wasMoving) {
+            const { dLat, dLon } = panOffsetRef.current;
+            update({
+              lat: parseFloat((latRef.current + dLat).toFixed(6)),
+              lng: parseFloat((lngRef.current + dLon).toFixed(6)),
+            });
+            panOffsetRef.current = { dLat: 0, dLon: 0 };
+          }
         }}
         onDoubleClick={() => {
           if (pinTimeoutRef.current) {
             clearTimeout(pinTimeoutRef.current);
             pinTimeoutRef.current = null;
           }
-          panOffsetRef.current = { dLat: 0, dLon: 0 };
           zoomLevelRef.current = 1;
         }}
       />
