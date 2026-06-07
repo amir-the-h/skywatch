@@ -26,6 +26,9 @@ export function RadarView() {
   useEffect(() => { pinnedHexesRef.current = pinnedHexes; }, [pinnedHexes]);
 
   const zoomLevelRef = useRef(1);
+  const panOffsetRef = useRef({ x: 0, y: 0 });
+  const isDraggingRef = useRef(false);
+  const dragStartRef = useRef({ x: 0, y: 0 });
   const pinTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Mirror settings into refs so the wheel callback reads fresh values
@@ -72,6 +75,7 @@ export function RadarView() {
         pinnedHexes: pinnedHexesRef.current,
         theme,
         pathHistory,
+        panOffset: panOffsetRef.current,
       });
       rafRef.current = requestAnimationFrame(loop);
     };
@@ -122,8 +126,9 @@ export function RadarView() {
       const canvas = canvasRef.current;
       if (!canvas) return null;
       const rect = canvas.getBoundingClientRect();
-      const mx = clientX - rect.left;
-      const my = clientY - rect.top;
+      // Subtract pan offset so we're in the translated coordinate space
+      const mx = clientX - rect.left - panOffsetRef.current.x;
+      const my = clientY - rect.top - panOffsetRef.current.y;
       const effectiveRadius = radiusKmRef.current / zoomLevelRef.current;
 
       for (const ac of aircraftMap.values()) {
@@ -144,11 +149,35 @@ export function RadarView() {
       <canvas
         ref={canvasRef}
         style={{ width: '100%', height: '100%', display: 'block', cursor: 'default' }}
+        onMouseDown={(e) => {
+          if (e.button !== 0) return;
+          const hitHex = hitTest(e.clientX, e.clientY);
+          if (!hitHex) {
+            isDraggingRef.current = true;
+            e.currentTarget.style.cursor = 'grabbing';
+            dragStartRef.current = {
+              x: e.clientX - panOffsetRef.current.x,
+              y: e.clientY - panOffsetRef.current.y,
+            };
+          }
+        }}
         onMouseMove={(e) => {
+          if (isDraggingRef.current) {
+            panOffsetRef.current = {
+              x: e.clientX - dragStartRef.current.x,
+              y: e.clientY - dragStartRef.current.y,
+            };
+            return;
+          }
           setHoverPos({ x: e.clientX, y: e.clientY });
           setHovered(hitTest(e.clientX, e.clientY));
         }}
         onMouseUp={(e) => {
+          if (isDraggingRef.current) {
+            isDraggingRef.current = false;
+            e.currentTarget.style.cursor = 'default';
+            return;
+          }
           const hex = hitTest(e.clientX, e.clientY);
           if (hex) {
             if (pinTimeoutRef.current) clearTimeout(pinTimeoutRef.current);
@@ -158,7 +187,9 @@ export function RadarView() {
             }, 250);
           }
         }}
-        onMouseLeave={() => {
+        onMouseLeave={(e) => {
+          isDraggingRef.current = false;
+          e.currentTarget.style.cursor = 'default';
           setHovered(null);
           setHoverPos(null);
         }}
@@ -168,6 +199,7 @@ export function RadarView() {
             pinTimeoutRef.current = null;
           }
           zoomLevelRef.current = 1;
+          panOffsetRef.current = { x: 0, y: 0 };
         }}
       />
 
