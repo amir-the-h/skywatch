@@ -9,6 +9,10 @@ import { AircraftOverlay } from './AircraftOverlay';
 import { FlightPreview } from '../FlightBubble/FlightPreview';
 import { FlightBubble } from '../FlightBubble/FlightBubble';
 import { interpolatePosition } from '../../lib/interpolate';
+import { useFilterStore } from '../../store/filterStore';
+import { matchesFilter } from '../../lib/aircraftFilter';
+import { FilterDrawer } from '../FilterDrawer/FilterDrawer';
+import { aircraftColor } from '../../lib/colorSystem';
 
 const OSM_TILES = 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png';
 const OSM_ATTR = '&copy; <a href="https://openstreetmap.org">OpenStreetMap</a>';
@@ -25,7 +29,7 @@ function MapRecenter({ lat, lng }: { lat: number; lng: number }) {
 }
 
 export function MapView() {
-  const { lat, lng, tileSource } = useSettingsStore();
+  const { lat, lng, tileSource, theme } = useSettingsStore();
   const aircraftMap = useAircraftStore((s) => s.aircraft);
   const pinnedHexes = useAircraftStore((s) => s.pinnedHexes);
   const hoveredHex = useAircraftStore((s) => s.hoveredHex);
@@ -41,6 +45,9 @@ export function MapView() {
     interpolatePosition(ac, now)
   );
   void renderTick;
+
+  const filters = useFilterStore();
+  const visibleAircraft = aircraft.filter((ac) => matchesFilter(ac, filters));
 
   const [hoverPos, setHoverPos] = useState<{ x: number; y: number } | null>(null);
   const hoveredAircraft = hoveredHex ? aircraftMap.get(hoveredHex) : null;
@@ -61,7 +68,7 @@ export function MapView() {
           url={tileSource === 'osm' ? OSM_TILES : SAT_TILES}
           attribution={tileSource === 'osm' ? OSM_ATTR : SAT_ATTR}
         />
-        {aircraft.map((ac) => (
+        {visibleAircraft.map((ac) => (
           <React.Fragment key={ac.hex}>
             <AircraftOverlay aircraft={ac} />
             <AircraftMarker aircraft={ac} />
@@ -76,9 +83,13 @@ export function MapView() {
       <div className="bubbles-container">
         {[...pinnedHexes].map((hex) => {
           const ac = aircraftMap.get(hex);
-          return ac ? <FlightBubble key={hex} aircraft={ac} /> : null;
+          if (!ac) return null;
+          const color = aircraftColor(ac.t, theme);
+          return <FlightBubble key={hex} aircraft={ac} color={color} />;
         })}
       </div>
+
+      <FilterDrawer />
     </div>
   );
 }
