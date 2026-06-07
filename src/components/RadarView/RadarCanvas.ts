@@ -1,5 +1,6 @@
 // src/components/RadarView/RadarCanvas.ts
 import type { Aircraft, LabelCondition } from '../../types/aircraft';
+import type { Airport } from '../../types/airport';
 import { aircraftColor, lightenHsl } from '../../lib/colorSystem';
 import { getAircraftFamily, SILHOUETTE_PATHS } from '../../lib/silhouettes';
 import { latLonToCanvas } from '../../lib/geoUtils';
@@ -27,6 +28,7 @@ export interface RadarDrawParams {
   panOffset: { x: number; y: number };
   trailLength: number;
   labelConditions: LabelCondition[];
+  airports: Airport[];
 }
 
 export function drawRadar(params: RadarDrawParams) {
@@ -42,6 +44,7 @@ export function drawRadar(params: RadarDrawParams) {
   drawRings(params);
   drawGrid(params);
   drawCardinals(params);
+  drawAirports(params);
   const renderData = drawAllAircraft(params);
   drawAircraftLabels(params, renderData);
   ctx.restore();
@@ -111,6 +114,68 @@ function drawCardinals({ ctx, width, height, radiusKm, theme }: RadarDrawParams)
   ctx.fillText('S', cx, cy + outerR + 12);
   ctx.fillText('W', cx - outerR - 14, cy);
   ctx.fillText('E', cx + outerR + 14, cy);
+}
+
+function drawAirports(params: RadarDrawParams) {
+  const { ctx, width, height, centerLat, centerLon, radiusKm, airports } = params;
+  if (!airports.length) return;
+
+  const scale = Math.min(width, height) / 2 / radiusKm;
+
+  for (const airport of airports) {
+    const center = latLonToCanvas(airport.lat, airport.lon, centerLat, centerLon, radiusKm, width, height);
+
+    if (airport.runways.length === 0) {
+      ctx.beginPath();
+      ctx.arc(center.x, center.y, 3, 0, Math.PI * 2);
+      ctx.fillStyle = 'rgba(74, 222, 128, 0.7)';
+      ctx.fill();
+      ctx.fillStyle = 'rgba(74, 222, 128, 0.65)';
+      ctx.font = '9px monospace';
+      ctx.textAlign = 'left';
+      ctx.textBaseline = 'top';
+      ctx.fillText(airport.iata || airport.icao, center.x + 5, center.y - 10);
+      continue;
+    }
+
+    let maxLenPx = 0;
+
+    for (const runway of airport.runways) {
+      const le = latLonToCanvas(runway.le.lat, runway.le.lon, centerLat, centerLon, radiusKm, width, height);
+      const he = latLonToCanvas(runway.he.lat, runway.he.lon, centerLat, centerLon, radiusKm, width, height);
+
+      const dx = he.x - le.x;
+      const dy = he.y - le.y;
+      const lenPx = Math.hypot(dx, dy);
+      if (lenPx < 8) continue;
+      maxLenPx = Math.max(maxLenPx, lenPx);
+
+      const cx = (le.x + he.x) / 2;
+      const cy = (le.y + he.y) / 2;
+      const angle = Math.atan2(dy, dx);
+      const widthPx = Math.max(1, runway.widthFt * 0.0003048 * scale);
+
+      ctx.save();
+      ctx.translate(cx, cy);
+      ctx.rotate(angle);
+      ctx.fillStyle = 'rgba(74, 222, 128, 0.12)';
+      ctx.strokeStyle = 'rgba(74, 222, 128, 0.45)';
+      ctx.lineWidth = 0.8;
+      ctx.beginPath();
+      ctx.rect(-lenPx / 2, -widthPx / 2, lenPx, widthPx);
+      ctx.fill();
+      ctx.stroke();
+      ctx.restore();
+    }
+
+    if (maxLenPx >= 12) {
+      ctx.fillStyle = 'rgba(74, 222, 128, 0.65)';
+      ctx.font = '9px monospace';
+      ctx.textAlign = 'left';
+      ctx.textBaseline = 'top';
+      ctx.fillText(airport.iata || airport.icao, center.x + 5, center.y - 10);
+    }
+  }
 }
 
 const AIRCRAFT_SIZE = 28;
