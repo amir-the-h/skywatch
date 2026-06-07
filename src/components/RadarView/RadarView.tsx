@@ -37,6 +37,9 @@ export function RadarView() {
   const isDraggingRef = useRef(false);
   const dragStartRef = useRef({ x: 0, y: 0 });
   const pinTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const touchStartRef = useRef<{ x: number; y: number } | null>(null);
+  const lastPinchDistRef = useRef<number | null>(null);
+  const hadPinchRef = useRef(false);
 
   // Mirror settings into refs so the wheel callback reads fresh values
   const latRef = useRef(lat);
@@ -216,7 +219,7 @@ export function RadarView() {
     <div className="radar-container">
       <canvas
         ref={canvasRef}
-        style={{ width: '100%', height: '100%', display: 'block', cursor: 'default' }}
+        style={{ width: '100%', height: '100%', display: 'block', cursor: 'default', touchAction: 'none' }}
         onMouseDown={(e) => {
           if (e.button !== 0) return;
           const hitHex = hitTest(e.clientX, e.clientY);
@@ -290,6 +293,90 @@ export function RadarView() {
             pinTimeoutRef.current = null;
           }
           resetView();
+        }}
+        onTouchStart={(e) => {
+          if (e.touches.length === 1) {
+            const t = e.touches[0];
+            isDraggingRef.current = true;
+            hadPinchRef.current = false;
+            dragStartRef.current = {
+              x: t.clientX - panOffsetRef.current.x,
+              y: t.clientY - panOffsetRef.current.y,
+            };
+            touchStartRef.current = { x: t.clientX, y: t.clientY };
+          } else if (e.touches.length === 2) {
+            isDraggingRef.current = false;
+            hadPinchRef.current = true;
+            const dx = e.touches[0].clientX - e.touches[1].clientX;
+            const dy = e.touches[0].clientY - e.touches[1].clientY;
+            lastPinchDistRef.current = Math.hypot(dx, dy);
+          }
+        }}
+        onTouchMove={(e) => {
+          if (e.touches.length === 1 && isDraggingRef.current) {
+            const t = e.touches[0];
+            panOffsetRef.current = {
+              x: t.clientX - dragStartRef.current.x,
+              y: t.clientY - dragStartRef.current.y,
+            };
+            setIsTransformed(true);
+          } else if (e.touches.length === 2 && lastPinchDistRef.current !== null) {
+            const canvas = canvasRef.current;
+            if (!canvas) return;
+            const dx = e.touches[0].clientX - e.touches[1].clientX;
+            const dy = e.touches[0].clientY - e.touches[1].clientY;
+            const newDist = Math.hypot(dx, dy);
+            const delta = (lastPinchDistRef.current - newDist) * 2;
+            lastPinchDistRef.current = newDist;
+            const oldZoom = zoomLevelRef.current;
+            zoomLevelRef.current = applyZoom(oldZoom, delta);
+            setZoomScale(Math.sqrt(zoomLevelRef.current));
+            const rect = canvas.getBoundingClientRect();
+            const mx = (e.touches[0].clientX + e.touches[1].clientX) / 2 - rect.left - canvas.width / 2;
+            const my = (e.touches[0].clientY + e.touches[1].clientY) / 2 - rect.top - canvas.height / 2;
+            const f = zoomLevelRef.current / oldZoom;
+            panOffsetRef.current = {
+              x: (1 - f) * mx + f * panOffsetRef.current.x,
+              y: (1 - f) * my + f * panOffsetRef.current.y,
+            };
+            setIsTransformed(true);
+          }
+        }}
+        onTouchEnd={(e) => {
+          if (e.touches.length === 0) {
+            // All fingers lifted — check for tap
+            if (isDraggingRef.current && touchStartRef.current && !hadPinchRef.current) {
+              const t = e.changedTouches[0];
+              const moved = Math.hypot(
+                t.clientX - touchStartRef.current.x,
+                t.clientY - touchStartRef.current.y,
+              );
+              if (moved < 8) {
+                const hex = hitTest(t.clientX, t.clientY);
+                if (hex) {
+                  if (pinnedHexesRef.current.has(hex)) {
+                    unpin(hex);
+                  } else {
+                    pin(hex);
+                  }
+                }
+              }
+            }
+            isDraggingRef.current = false;
+            touchStartRef.current = null;
+            lastPinchDistRef.current = null;
+            hadPinchRef.current = false;
+          } else if (e.touches.length === 1) {
+            // One finger lifted, one still down — avoid pan jump
+            lastPinchDistRef.current = null;
+            const remaining = e.touches[0];
+            dragStartRef.current = {
+              x: remaining.clientX - panOffsetRef.current.x,
+              y: remaining.clientY - panOffsetRef.current.y,
+            };
+            touchStartRef.current = { x: remaining.clientX, y: remaining.clientY };
+            isDraggingRef.current = true;
+          }
         }}
       />
 
