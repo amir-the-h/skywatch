@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { aircraftColor, getManufacturer } from './colorSystem';
+import { aircraftColor, getManufacturer, lightenHsl } from './colorSystem';
 
 describe('getManufacturer', () => {
   it('maps Boeing type codes', () => {
@@ -41,5 +41,27 @@ describe('aircraftColor', () => {
     expect(lightness(aircraftColor('A320', 'dark'))).toBeGreaterThan(
       lightness(aircraftColor('A320', 'light'))
     );
+  });
+});
+
+describe('lightenHsl', () => {
+  it('increases lightness by the given fraction', () => {
+    const result = lightenHsl('hsl(120, 90%, 55%)', 0.2);
+    expect(result).toBe('hsl(120, 90%, 75%)');
+  });
+
+  it('clamps lightness at 100%', () => {
+    const result = lightenHsl('hsl(120, 90%, 95%)', 0.2);
+    expect(result).toBe('hsl(120, 90%, 100%)');
+  });
+
+  it('returns the input unchanged if not a valid hsl string', () => {
+    expect(lightenHsl('not-a-color', 0.2)).toBe('not-a-color');
+  });
+
+  it('produces a valid hsl string for aircraft colors', () => {
+    const base = aircraftColor('B738', 'dark');
+    const bright = lightenHsl(base, 0.2);
+    expect(bright).toMatch(/^hsl\(\d+,\s*\d+%,\s*\d+%\)$/);
   });
 });
