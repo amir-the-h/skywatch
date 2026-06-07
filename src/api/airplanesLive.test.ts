@@ -69,4 +69,51 @@ describe('fetchAircraft', () => {
     );
     await expect(fetchAircraft(41, 28, 100)).rejects.toThrow('429');
   });
+
+  it('normalizes route fields when present', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue({
+        ok: true,
+        json: async () => ({
+          ac: [{
+            hex: 'abc123', flight: 'TK1', r: 'TC-A', t: 'B738',
+            lat: 41, lon: 28, alt_baro: 35000, gs: 450, track: 0,
+            baro_rate: 0, seen: 1,
+            orig_iata: 'IST', dest_iata: 'AYT',
+            orig_name: 'Istanbul', dest_name: 'Antalya',
+          }],
+        }),
+      })
+    );
+    const result = await fetchAircraft(41, 28, 100);
+    expect(result[0].orig_iata).toBe('IST');
+    expect(result[0].dest_iata).toBe('AYT');
+    expect(result[0].orig_name).toBe('Istanbul');
+    expect(result[0].dest_name).toBe('Antalya');
+  });
+
+  it('normalizes route fields to undefined when absent', async () => {
+    const result = await fetchAircraft(41, 28, 100);
+    expect(result[0].orig_iata).toBeUndefined();
+    expect(result[0].dest_iata).toBeUndefined();
+  });
+
+  it('treats alt_baro "ground" as 0', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue({
+        ok: true,
+        json: async () => ({
+          ac: [{
+            hex: 'abc123', flight: 'TK1', r: 'TC-A', t: 'B738',
+            lat: 41, lon: 28, alt_baro: 'ground', gs: 5, track: 0,
+            baro_rate: 0, seen: 1,
+          }],
+        }),
+      })
+    );
+    const result = await fetchAircraft(41, 28, 100);
+    expect(result[0].alt_baro).toBe(0);
+  });
 });
