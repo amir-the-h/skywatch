@@ -1,3 +1,5 @@
+import type { Airport } from '../types/airport';
+
 const R_KM = 6371;
 
 export function haversineKm(lat1: number, lon1: number, lat2: number, lon2: number): number {
@@ -69,4 +71,27 @@ export function bearingToLatLon(
     lat: (lat2 * 180) / Math.PI,
     lon: (lon2 * 180) / Math.PI,
   };
+}
+
+export function findClosestAirport(
+  airports: Airport[],
+  mx: number,
+  my: number,
+  centerLat: number,
+  centerLon: number,
+  radiusKm: number,
+  width: number,
+  height: number
+): Airport | null {
+  let closest: Airport | null = null;
+  let minDist = 18;
+  for (const airport of airports) {
+    const pos = latLonToCanvas(airport.lat, airport.lon, centerLat, centerLon, radiusKm, width, height);
+    const dist = Math.hypot(mx - pos.x, my - pos.y);
+    if (dist < minDist) {
+      minDist = dist;
+      closest = airport;
+    }
+  }
+  return closest;
 }
