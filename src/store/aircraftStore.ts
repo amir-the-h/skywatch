@@ -1,6 +1,7 @@
 // src/store/aircraftStore.ts
 import { create } from 'zustand';
 import type { Aircraft } from '../types/aircraft';
+import { interpolatePosition } from '../lib/interpolate';
 
 const PATH_HISTORY_MAX = 50;
 
@@ -32,10 +33,14 @@ export const useAircraftStore = create<AircraftStore>((set) => ({
       const now = Date.now();
       for (const ac of incoming) {
         const prev = next.get(ac.hex);
+        // Advance the stored render position to where interpolation left off,
+        // so the next RAF interval continues from the current visual location
+        // instead of snapping back to the initial position.
+        const advanced = prev ? interpolatePosition(prev, now) : null;
         next.set(ac.hex, {
           ...ac,
-          _renderLat: prev ? prev._renderLat : ac.lat,
-          _renderLon: prev ? prev._renderLon : ac.lon,
+          _renderLat: advanced ? advanced._renderLat : ac.lat,
+          _renderLon: advanced ? advanced._renderLon : ac.lon,
           _lastSeen: now,
         });
         const existing = nextHistory.get(ac.hex) ?? [];
