@@ -24,6 +24,7 @@ export interface RadarDrawParams {
   theme: 'dark' | 'light';
   pathHistory: Map<string, { lat: number; lon: number }[]>;
   panOffset: { x: number; y: number };
+  trailLength: number;    // NEW
 }
 
 export function drawRadar(params: RadarDrawParams) {
@@ -115,7 +116,7 @@ const NOSE_OFFSET = AIRCRAFT_SIZE * 0.425;
 const HEADING_LINE_LENGTH = AIRCRAFT_SIZE * 3;
 
 function drawAllAircraft(params: RadarDrawParams): Map<string, AircraftRenderData> {
-  const { ctx, width, height, centerLat, centerLon, radiusKm, aircraft, hoveredHex, pinnedHexes, theme, pathHistory } = params;
+  const { ctx, width, height, centerLat, centerLon, radiusKm, aircraft, hoveredHex, pinnedHexes, theme, pathHistory, trailLength } = params;
 
   const renderData = new Map<string, AircraftRenderData>();
 
@@ -131,9 +132,10 @@ function drawAllAircraft(params: RadarDrawParams): Map<string, AircraftRenderDat
     const isHovered = hoveredHex === ac.hex && !isPinned;
     const isEmergency = (!!ac.emergency && ac.emergency !== 'none') || ac.squawk === '7700' || ac.squawk === '7600' || ac.squawk === '7500';
 
-    // Trail
-    const history = pathHistory.get(ac.hex);
-    if (history && history.length >= 2) {
+    // Trail — slice to configured length
+    const fullHistory = pathHistory.get(ac.hex);
+    const history = fullHistory && trailLength > 0 ? fullHistory.slice(-trailLength) : [];
+    if (history.length >= 2) {
       ctx.save();
       ctx.strokeStyle = lightenHsl(color, 0.2);
       ctx.lineWidth = 1.5;
