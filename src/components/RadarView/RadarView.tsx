@@ -7,13 +7,12 @@ import { drawRadar } from './RadarCanvas';
 import { FlightBubble } from '../FlightBubble/FlightBubble';
 import { FlightPreview } from '../FlightBubble/FlightPreview';
 import { latLonToCanvas } from '../../lib/geoUtils';
-import { applyPan, applyZoom, type PanOffset } from './viewTransform';
+import { applyZoom } from './viewTransform';
 
 export function RadarView() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const rafRef = useRef<number>(0);
   const { lat, lng, radiusKm, ringIntervals, theme } = useSettingsStore();
-  const update = useSettingsStore((s) => s.update);
   const aircraftMap = useAircraftStore((s) => s.aircraft);
   const pinnedHexes = useAircraftStore((s) => s.pinnedHexes);
   const hoveredHex = useAircraftStore((s) => s.hoveredHex);
@@ -21,22 +20,15 @@ export function RadarView() {
   const pin = useAircraftStore((s) => s.pin);
   const setHovered = useAircraftStore((s) => s.setHovered);
 
-  // Refs so the rAF loop reads fresh hover/pin state without restarting on every hover
   const hoveredHexRef = useRef(hoveredHex);
   const pinnedHexesRef = useRef(pinnedHexes);
   useEffect(() => { hoveredHexRef.current = hoveredHex; }, [hoveredHex]);
   useEffect(() => { pinnedHexesRef.current = pinnedHexes; }, [pinnedHexes]);
 
-  const panOffsetRef = useRef<PanOffset>({ dLat: 0, dLon: 0 });
   const zoomLevelRef = useRef(1);
-
-  const isDragging = useRef(false);
-  const dragStart = useRef({ x: 0, y: 0 });
-  const hasMoved = useRef(false);
   const pinTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const [cursor, setCursor] = useState<'grab' | 'grabbing'>('grab');
 
-  // Mirror settings into refs so stable wheel/drag callbacks read fresh values
+  // Mirror settings into refs so the wheel callback reads fresh values
   const latRef = useRef(lat);
   const lngRef = useRef(lng);
   const radiusKmRef = useRef(radiusKm);
@@ -46,12 +38,7 @@ export function RadarView() {
     radiusKmRef.current = radiusKm;
   }, [lat, lng, radiusKm]);
 
-  // When settings lat/lng change externally (settings UI), zero any pending pan offset
-  useEffect(() => {
-    panOffsetRef.current = { dLat: 0, dLon: 0 };
-  }, [lat, lng]);
-
-  // When radius changes, reset zoom so scale stays sensible
+  // Reset zoom when radius changes
   useEffect(() => {
     zoomLevelRef.current = 1;
   }, [radiusKm]);
@@ -59,7 +46,7 @@ export function RadarView() {
   const [hoverPos, setHoverPos] = useState<{ x: number; y: number } | null>(null);
   const hoveredAircraft = hoveredHex ? aircraftMap.get(hoveredHex) : null;
 
-  // rAF draw loop — only restarts when settings or aircraft data changes, not on hover
+  // rAF draw loop
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -71,15 +58,13 @@ export function RadarView() {
       const aircraft = Array.from(aircraftMap.values()).map((ac) =>
         interpolatePosition(ac, now)
       );
-      const effectiveLat = latRef.current + panOffsetRef.current.dLat;
-      const effectiveLon = lngRef.current + panOffsetRef.current.dLon;
       const effectiveRadius = radiusKmRef.current / zoomLevelRef.current;
       drawRadar({
         ctx,
         width: canvas.width,
         height: canvas.height,
-        centerLat: effectiveLat,
-        centerLon: effectiveLon,
+        centerLat: latRef.current,
+        centerLon: lngRef.current,
         radiusKm: effectiveRadius,
         ringIntervals,
         aircraft,
@@ -110,13 +95,7 @@ export function RadarView() {
           : e.deltaMode === 1
             ? e.deltaY * PIXELS_PER_LINE
             : e.deltaY;
-      const result = applyZoom(
-        zoomLevelRef.current,
-        panOffsetRef.current,
-        normalizedDeltaY
-      );
-      zoomLevelRef.current = result.zoomLevel;
-      panOffsetRef.current = result.panOffset;
+      zoomLevelRef.current = applyZoom(zoomLevelRef.current, normalizedDeltaY);
     };
 
     canvas.addEventListener('wheel', handleWheel, { passive: false });
@@ -145,15 +124,12 @@ export function RadarView() {
       const rect = canvas.getBoundingClientRect();
       const mx = clientX - rect.left;
       const my = clientY - rect.top;
-
-      const effectiveLat = latRef.current + panOffsetRef.current.dLat;
-      const effectiveLon = lngRef.current + panOffsetRef.current.dLon;
       const effectiveRadius = radiusKmRef.current / zoomLevelRef.current;
 
       for (const ac of aircraftMap.values()) {
         const pos = latLonToCanvas(
           ac._renderLat, ac._renderLon,
-          effectiveLat, effectiveLon, effectiveRadius,
+          latRef.current, lngRef.current, effectiveRadius,
           canvas.width, canvas.height
         );
         if (Math.hypot(mx - pos.x, my - pos.y) < 18) return ac.hex;
@@ -167,74 +143,24 @@ export function RadarView() {
     <div className="radar-container">
       <canvas
         ref={canvasRef}
-        style={{ width: '100%', height: '100%', display: 'block', cursor }}
-        onMouseDown={(e) => {
-          isDragging.current = true;
-          hasMoved.current = false;
-          dragStart.current = { x: e.clientX, y: e.clientY };
-          setCursor('grabbing');
-          setHovered(null);
-          setHoverPos(null);
-        }}
+        style={{ width: '100%', height: '100%', display: 'block', cursor: 'default' }}
         onMouseMove={(e) => {
-          if (isDragging.current) {
-            const dx = e.clientX - dragStart.current.x;
-            const dy = e.clientY - dragStart.current.y;
-            if (!hasMoved.current && Math.hypot(dx, dy) < 4) return;
-            hasMoved.current = true;
-            const canvas = canvasRef.current;
-            if (!canvas) return;
-            const effectiveLat = latRef.current + panOffsetRef.current.dLat;
-            const effectiveRadius = radiusKmRef.current / zoomLevelRef.current;
-            panOffsetRef.current = applyPan(
-              panOffsetRef.current,
-              dx, dy,
-              effectiveLat, effectiveRadius,
-              canvas.width, canvas.height
-            );
-            dragStart.current = { x: e.clientX, y: e.clientY };
-            return;
-          }
           setHoverPos({ x: e.clientX, y: e.clientY });
           setHovered(hitTest(e.clientX, e.clientY));
         }}
         onMouseUp={(e) => {
-          const wasDrag = hasMoved.current;
-          isDragging.current = false;
-          hasMoved.current = false;
-          setCursor('grab');
-          if (wasDrag) {
-            const { dLat, dLon } = panOffsetRef.current;
-            update({
-              lat: parseFloat((latRef.current + dLat).toFixed(6)),
-              lng: parseFloat((lngRef.current + dLon).toFixed(6)),
-            });
-            panOffsetRef.current = { dLat: 0, dLon: 0 };
-          } else {
-            const hex = hitTest(e.clientX, e.clientY);
-            if (hex) {
-              if (pinTimeoutRef.current) clearTimeout(pinTimeoutRef.current);
-              pinTimeoutRef.current = setTimeout(() => {
-                pin(hex);
-                pinTimeoutRef.current = null;
-              }, 250);
-            }
+          const hex = hitTest(e.clientX, e.clientY);
+          if (hex) {
+            if (pinTimeoutRef.current) clearTimeout(pinTimeoutRef.current);
+            pinTimeoutRef.current = setTimeout(() => {
+              pin(hex);
+              pinTimeoutRef.current = null;
+            }, 250);
           }
         }}
         onMouseLeave={() => {
-          const wasMoving = hasMoved.current;
-          isDragging.current = false;
-          hasMoved.current = false;
-          setCursor('grab');
           setHovered(null);
-          if (wasMoving) {
-            const { dLat, dLon } = panOffsetRef.current;
-            update({
-              lat: parseFloat((latRef.current + dLat).toFixed(6)),
-              lng: parseFloat((lngRef.current + dLon).toFixed(6)),
-            });
-            panOffsetRef.current = { dLat: 0, dLon: 0 };
-          }
+          setHoverPos(null);
         }}
         onDoubleClick={() => {
           if (pinTimeoutRef.current) {
