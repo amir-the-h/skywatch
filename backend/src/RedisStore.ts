@@ -105,7 +105,10 @@ export class RedisStore {
     if (!hash.hex) return null;
 
     const pathHistory = rawPath
-      .map((p) => JSON.parse(p) as { lat: number; lon: number })
+      .flatMap((p) => {
+        try { return [JSON.parse(p) as { lat: number; lon: number }]; }
+        catch { return []; }
+      })
       .reverse();
 
     return deserializeAircraft(hash, pathHistory);
@@ -122,6 +125,7 @@ export class RedisStore {
       fetchLon: String(gLon),
       maxRadiusKm: String(maxRadiusKm),
     });
+    await this.client.expire(key, 120);
   }
 
   async saveCellHexes(gLat: number, gLon: number, hexes: string[]): Promise<void> {
@@ -130,6 +134,7 @@ export class RedisStore {
     if (hexes.length > 0) {
       await this.client.sAdd(key, hexes);
     }
+    await this.client.expire(key, 120);
   }
 
   async deleteCell(gLat: number, gLon: number): Promise<void> {
