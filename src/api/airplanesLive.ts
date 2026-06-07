@@ -11,6 +11,7 @@ function normalize(raw: any): Aircraft | null {
     flight: (raw.flight ?? '').trim(),
     r: raw.r ?? '',
     t: raw.t ?? '',
+    desc: raw.desc ?? undefined,
     lat: raw.lat,
     lon: raw.lon,
     alt_baro: typeof raw.alt_baro === 'number' ? raw.alt_baro : 0,

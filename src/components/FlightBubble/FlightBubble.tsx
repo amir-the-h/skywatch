@@ -50,7 +50,7 @@ export function FlightBubble({ aircraft, color }: Props) {
       </div>
 
       <div className="bubble-type">
-        {aircraft.t}{aircraft.year ? ` · ${aircraft.year}` : ''}{aircraft.ownOp ? ` · ${aircraft.ownOp}` : ''}
+        {aircraft.desc ?? aircraft.t}{aircraft.year ? ` · ${aircraft.year}` : ''}{aircraft.ownOp ? ` · ${aircraft.ownOp}` : ''}
       </div>
 
       {hasRoute && (

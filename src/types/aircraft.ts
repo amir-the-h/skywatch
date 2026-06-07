@@ -20,6 +20,7 @@ export interface Aircraft {
   flight: string;           // callsign
   r: string;                // registration
   t: string;                // ICAO type code e.g. "B738"
+  desc?: string;            // full aircraft description e.g. "BOEING 787-9 Dreamliner"
   lat: number;
   lon: number;
   alt_baro: number;         // feet
