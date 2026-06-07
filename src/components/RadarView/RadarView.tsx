@@ -237,7 +237,7 @@ export function RadarView() {
       <div className="bubbles-container">
         {[...pinnedHexes].map((hex) => {
           const ac = aircraftMap.get(hex);
-          if (!ac) return null;
+          if (!ac || !matchesFilter(ac, filters)) return null;
           const color = aircraftColor(ac.t, theme);
           return <FlightBubble key={hex} aircraft={ac} color={color} />;
         })}
