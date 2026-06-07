@@ -45,17 +45,18 @@ export function drawRadar(params: RadarDrawParams) {
   ctx.translate(panOffset.x, panOffset.y);
   drawRings(params);
   drawGrid(params);
-  drawCardinals(params);
   drawAirports(params);
   const renderData = drawAllAircraft(params);
   drawAircraftLabels(params, renderData);
   ctx.restore();
+  drawCardinals(params);
 }
 
-function drawRings({ ctx, width, height, radiusKm, ringIntervals, theme }: RadarDrawParams) {
+function drawRings({ ctx, width, height, radiusKm, ringIntervals, theme, zoomLevel }: RadarDrawParams) {
   const cx = width / 2;
   const cy = height / 2;
   const scale = Math.min(width, height) / 2 / radiusKm;
+  const originalRadiusKm = radiusKm * zoomLevel;
   const ringColor = theme === 'dark' ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.1)';
   const labelColor = theme === 'dark' ? 'rgba(255,255,255,0.3)' : 'rgba(0,0,0,0.4)';
 
@@ -66,12 +67,12 @@ function drawRings({ ctx, width, height, radiusKm, ringIntervals, theme }: Radar
   ctx.textAlign = 'center';
 
   for (const km of ringIntervals) {
-    if (km > radiusKm) continue;
+    if (km > originalRadiusKm) continue;
     const r = km * scale;
     ctx.beginPath();
     ctx.arc(cx, cy, r, 0, Math.PI * 2);
     ctx.stroke();
-    ctx.fillText(`${km}km`, cx, cy - r + 14);
+    if (cy - r + 14 > 0) ctx.fillText(`${km}km`, cx, cy - r + 14);
   }
 }
 
@@ -100,22 +101,13 @@ function drawGrid({ ctx, width, height, radiusKm, theme }: RadarDrawParams) {
   }
 }
 
-function drawCardinals({ ctx, width, height, radiusKm, theme }: RadarDrawParams) {
-  const cx = width / 2;
-  const cy = height / 2;
-  const scale = Math.min(width, height) / 2 / radiusKm;
-  const outerR = radiusKm * scale;
+function drawCardinals({ ctx, width, theme }: RadarDrawParams) {
   const color = theme === 'dark' ? 'rgba(255,255,255,0.35)' : 'rgba(0,0,0,0.4)';
-
   ctx.fillStyle = color;
   ctx.font = 'bold 13px monospace';
   ctx.textAlign = 'center';
-  ctx.textBaseline = 'middle';
-
-  ctx.fillText('N', cx, cy - outerR - 12);
-  ctx.fillText('S', cx, cy + outerR + 12);
-  ctx.fillText('W', cx - outerR - 14, cy);
-  ctx.fillText('E', cx + outerR + 14, cy);
+  ctx.textBaseline = 'top';
+  ctx.fillText('N', width / 2, 8);
 }
 
 function drawAirports(params: RadarDrawParams) {
