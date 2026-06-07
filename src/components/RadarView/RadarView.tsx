@@ -3,6 +3,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { useAircraftStore } from '../../store/aircraftStore';
 import { useSettingsStore } from '../../hooks/useSettings';
 import { interpolatePosition } from '../../lib/interpolate';
+import { aircraftColor } from '../../lib/colorSystem';
 import { drawRadar } from './RadarCanvas';
 import { FlightBubble } from '../FlightBubble/FlightBubble';
 import { FlightPreview } from '../FlightBubble/FlightPreview';
@@ -221,7 +222,9 @@ export function RadarView() {
       <div className="bubbles-container">
         {[...pinnedHexes].map((hex) => {
           const ac = aircraftMap.get(hex);
-          return ac ? <FlightBubble key={hex} aircraft={ac} /> : null;
+          if (!ac) return null;
+          const color = aircraftColor(ac.t, theme);
+          return <FlightBubble key={hex} aircraft={ac} color={color} />;
         })}
       </div>
     </div>
