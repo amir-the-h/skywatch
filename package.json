@@ -9,7 +9,8 @@
     "lint": "eslint .",
     "preview": "vite preview",
     "test": "vitest run --passWithNoTests",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "generate:airports": "node scripts/generate-airports.mjs"
   },
   "dependencies": {
     "leaflet": "^1.9.4",
