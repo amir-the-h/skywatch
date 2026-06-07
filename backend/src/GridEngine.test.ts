@@ -3,8 +3,8 @@ import { snapToGrid, cellKey } from './GridEngine';
 
 describe('snapToGrid', () => {
   it('returns consistent snapped coords for nearby points', () => {
-    const a = snapToGrid(41.01, 28.97);
-    const b = snapToGrid(41.02, 28.98);
+    const a = snapToGrid(41.00, 28.97);
+    const b = snapToGrid(41.01, 28.97);
     expect(cellKey(a.gLat, a.gLon)).toBe(cellKey(b.gLat, b.gLon));
   });
 

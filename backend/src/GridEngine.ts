@@ -1,4 +1,4 @@
-const CELL_DEG = 0.1; // ≈ 5–11 km at mid-latitudes
+const CELL_DEG = 0.045; // ≈ 5 km per design spec
 
 export function snapToGrid(lat: number, lon: number): { gLat: number; gLon: number } {
   return {
