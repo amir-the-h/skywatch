@@ -5,6 +5,11 @@ import { getAircraftFamily, SILHOUETTE_PATHS } from '../../lib/silhouettes';
 import { latLonToCanvas } from '../../lib/geoUtils';
 import { inferFlightPhase, getPhaseColor } from '../../lib/flightPhase';
 
+interface AircraftRenderData {
+  pos: { x: number; y: number };
+  color: string;
+}
+
 export interface RadarDrawParams {
   ctx: CanvasRenderingContext2D;
   width: number;
@@ -34,8 +39,8 @@ export function drawRadar(params: RadarDrawParams) {
   drawRings(params);
   drawGrid(params);
   drawCardinals(params);
-  drawAllAircraft(params);
-  drawAircraftLabels(params);
+  const renderData = drawAllAircraft(params);
+  drawAircraftLabels(params, renderData);
   ctx.restore();
 }
 
@@ -109,14 +114,17 @@ const AIRCRAFT_SIZE = 28;
 const NOSE_OFFSET = AIRCRAFT_SIZE * 0.425;
 const HEADING_LINE_LENGTH = AIRCRAFT_SIZE * 3;
 
-function drawAllAircraft(params: RadarDrawParams) {
+function drawAllAircraft(params: RadarDrawParams): Map<string, AircraftRenderData> {
   const { ctx, width, height, centerLat, centerLon, radiusKm, aircraft, hoveredHex, pinnedHexes, theme, pathHistory } = params;
+
+  const renderData = new Map<string, AircraftRenderData>();
 
   for (const ac of aircraft) {
     const pos = latLonToCanvas(ac._renderLat, ac._renderLon, centerLat, centerLon, radiusKm, width, height);
     if (pos.x < -20 || pos.x > width + 20 || pos.y < -20 || pos.y > height + 20) continue;
 
     const color = aircraftColor(ac.t, theme);
+    renderData.set(ac.hex, { pos, color });
     const family = getAircraftFamily(ac.t);
     const pathStr = SILHOUETTE_PATHS[family];
     const isPinned = pinnedHexes.has(ac.hex);
@@ -187,21 +195,22 @@ function drawAllAircraft(params: RadarDrawParams) {
       ctx.restore();
     }
   }
+
+  return renderData;
 }
 
 const LABEL_W = 100;
 const LABEL_H = 52;
 const LABEL_OFFSET = 40;
 
-function drawAircraftLabels(params: RadarDrawParams) {
-  const { ctx, width, height, centerLat, centerLon, radiusKm, aircraft, theme } = params;
+function drawAircraftLabels(params: RadarDrawParams, renderData: Map<string, AircraftRenderData>) {
+  const { ctx, width, height, aircraft, theme } = params;
   const textColor = theme === 'dark' ? '#e5e7eb' : '#1f2937';
 
   for (const ac of aircraft) {
-    const pos = latLonToCanvas(ac._renderLat, ac._renderLon, centerLat, centerLon, radiusKm, width, height);
-    if (pos.x < -20 || pos.x > width + 20 || pos.y < -20 || pos.y > height + 20) continue;
-
-    const color = aircraftColor(ac.t, theme);
+    const rd = renderData.get(ac.hex);
+    if (!rd) continue;
+    const { pos, color } = rd;
     const callsign = ac.flight || ac.hex;
     const phase = inferFlightPhase(ac);
     const phaseColor = getPhaseColor(phase);
@@ -229,14 +238,13 @@ function drawAircraftLabels(params: RadarDrawParams) {
     ctx.moveTo(pos.x, pos.y);
     ctx.lineTo(connX, connY);
     ctx.stroke();
-    ctx.setLineDash([]);
     ctx.restore();
 
     // Label background
     ctx.save();
     ctx.shadowBlur = 0;
     ctx.globalAlpha = 1;
-    ctx.fillStyle = 'rgba(10, 11, 15, 0.82)';
+    ctx.fillStyle = theme === 'dark' ? 'rgba(10, 11, 15, 0.82)' : 'rgba(240, 242, 248, 0.92)';
     ctx.beginPath();
     ctx.roundRect(lx, ly, LABEL_W, LABEL_H, 5);
     ctx.fill();
