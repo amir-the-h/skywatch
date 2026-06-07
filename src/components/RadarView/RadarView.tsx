@@ -24,6 +24,7 @@ export function RadarView() {
   const pinnedHexes = useAircraftStore((s) => s.pinnedHexes);
   const hoveredHex = useAircraftStore((s) => s.hoveredHex);
   const pin = useAircraftStore((s) => s.pin);
+  const unpin = useAircraftStore((s) => s.unpin);
   const setHovered = useAircraftStore((s) => s.setHovered);
 
   const hoveredHexRef = useRef(hoveredHex);
@@ -246,7 +247,11 @@ export function RadarView() {
           if (hex) {
             if (pinTimeoutRef.current) clearTimeout(pinTimeoutRef.current);
             pinTimeoutRef.current = setTimeout(() => {
-              pin(hex);
+              if (pinnedHexesRef.current.has(hex)) {
+                unpin(hex);
+              } else {
+                pin(hex);
+              }
               pinTimeoutRef.current = null;
             }, 250);
           }
