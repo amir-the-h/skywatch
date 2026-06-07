@@ -1,9 +1,10 @@
 // src/components/RadarView/RadarCanvas.ts
-import type { Aircraft } from '../../types/aircraft';
+import type { Aircraft, LabelCondition } from '../../types/aircraft';
 import { aircraftColor, lightenHsl } from '../../lib/colorSystem';
 import { getAircraftFamily, SILHOUETTE_PATHS } from '../../lib/silhouettes';
 import { latLonToCanvas } from '../../lib/geoUtils';
 import { inferFlightPhase, getPhaseColor } from '../../lib/flightPhase';
+import { shouldShowLabel } from '../../lib/labelVisibility';
 
 interface AircraftRenderData {
   pos: { x: number; y: number };
@@ -24,7 +25,8 @@ export interface RadarDrawParams {
   theme: 'dark' | 'light';
   pathHistory: Map<string, { lat: number; lon: number }[]>;
   panOffset: { x: number; y: number };
-  trailLength: number;    // NEW
+  trailLength: number;
+  labelConditions: LabelCondition[];
 }
 
 export function drawRadar(params: RadarDrawParams) {
@@ -206,12 +208,13 @@ const LABEL_H = 52;
 const LABEL_OFFSET = 40;
 
 function drawAircraftLabels(params: RadarDrawParams, renderData: Map<string, AircraftRenderData>) {
-  const { ctx, width, height, aircraft, theme } = params;
+  const { ctx, width, height, aircraft, theme, labelConditions, pinnedHexes } = params;
   const textColor = theme === 'dark' ? '#e5e7eb' : '#1f2937';
 
   for (const ac of aircraft) {
     const rd = renderData.get(ac.hex);
     if (!rd) continue;
+    if (!shouldShowLabel(ac, pinnedHexes, labelConditions)) continue;
     const { pos, color } = rd;
     const callsign = ac.flight || ac.hex;
     const phase = inferFlightPhase(ac);

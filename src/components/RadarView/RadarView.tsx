@@ -13,7 +13,7 @@ import { applyZoom } from './viewTransform';
 export function RadarView() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const rafRef = useRef<number>(0);
-  const { lat, lng, radiusKm, ringIntervals, theme, trailLength } = useSettingsStore();
+  const { lat, lng, radiusKm, ringIntervals, theme, trailLength, labelConditions } = useSettingsStore();
   const aircraftMap = useAircraftStore((s) => s.aircraft);
   const pinnedHexes = useAircraftStore((s) => s.pinnedHexes);
   const hoveredHex = useAircraftStore((s) => s.hoveredHex);
@@ -37,12 +37,14 @@ export function RadarView() {
   const lngRef = useRef(lng);
   const radiusKmRef = useRef(radiusKm);
   const trailLengthRef = useRef(trailLength);
+  const labelConditionsRef = useRef(labelConditions);
   useEffect(() => {
     latRef.current = lat;
     lngRef.current = lng;
     radiusKmRef.current = radiusKm;
   }, [lat, lng, radiusKm]);
   useEffect(() => { trailLengthRef.current = trailLength; }, [trailLength]);
+  useEffect(() => { labelConditionsRef.current = labelConditions; }, [labelConditions]);
 
   // Reset zoom when radius changes
   useEffect(() => {
@@ -80,6 +82,7 @@ export function RadarView() {
         pathHistory,
         panOffset: panOffsetRef.current,
         trailLength: trailLengthRef.current,
+        labelConditions: labelConditionsRef.current,
       });
       rafRef.current = requestAnimationFrame(loop);
     };
