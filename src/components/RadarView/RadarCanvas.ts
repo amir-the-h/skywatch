@@ -17,20 +17,24 @@ export interface RadarDrawParams {
   pinnedHexes: Set<string>;
   theme: 'dark' | 'light';
   pathHistory: Map<string, { lat: number; lon: number }[]>;
+  panOffset: { x: number; y: number };
 }
 
 export function drawRadar(params: RadarDrawParams) {
-  const { ctx, width, height, theme } = params;
+  const { ctx, width, height, theme, panOffset } = params;
   ctx.clearRect(0, 0, width, height);
 
   const bg = theme === 'dark' ? '#0a0b0f' : '#f0f0f0';
   ctx.fillStyle = bg;
   ctx.fillRect(0, 0, width, height);
 
+  ctx.save();
+  ctx.translate(panOffset.x, panOffset.y);
   drawRings(params);
   drawGrid(params);
   drawCardinals(params);
   drawAllAircraft(params);
+  ctx.restore();
 }
 
 function drawRings({ ctx, width, height, radiusKm, ringIntervals, theme }: RadarDrawParams) {
