@@ -8,7 +8,7 @@ function ac(overrides: Partial<Aircraft> = {}): Aircraft {
     hex: 'aaa', flight: 'UAL123', r: 'N123UA', t: 'B738',
     desc: 'BOEING 737-800',
     lat: 41, lon: 28, alt_baro: 35000, gs: 480, track: 0,
-    baro_rate: 0, seen: 1,
+    baro_rate: 0, seen: 1, phase: 'CRZ', pathHistory: [],
     _renderLat: 41, _renderLon: 28, _lastSeen: 0,
     ...overrides,
   };
@@ -84,8 +84,7 @@ describe('matchesFilter', () => {
     });
 
     it('passes when aircraft matches any selected phase', () => {
-      // CLB: baro_rate > 200
-      expect(matchesFilter(ac({ alt_baro: 20000, baro_rate: 500 }), { ...defaults, phases: ['CLB', 'CRZ'] })).toBe(true);
+      expect(matchesFilter(ac({ alt_baro: 20000, baro_rate: 500, phase: 'CLB' }), { ...defaults, phases: ['CLB', 'CRZ'] })).toBe(true);
     });
   });
 
