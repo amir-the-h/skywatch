@@ -324,6 +324,176 @@ function rectIntersectionArea(
   return ix * iy;
 }
 
+export function computeLabelPositions(
+  params: LabelComputeParams,
+  renderData: Map<string, AircraftRenderData>,
+  s: number,
+): Map<string, LabelPlacement> {
+  const { aircraft, width, height, pinnedHexes, labelConditions, panOffset, zoomLevel } = params;
+  const labelW = LABEL_W * s;
+  const labelH = LABEL_H * s;
+
+  // Detect sharp pan/zoom jump — skip lerp this frame to avoid labels sliding across screen
+  const panDelta = Math.hypot(panOffset.x - prevPan.x, panOffset.y - prevPan.y);
+  const zoomDelta = Math.abs(zoomLevel - prevZoom) * 100;
+  const skipLerp = panDelta > LABEL_RESET_THRESHOLD || zoomDelta > LABEL_RESET_THRESHOLD;
+  prevPan = { ...panOffset };
+  prevZoom = zoomLevel;
+
+  // Filter to aircraft that are rendered and should show a label
+  const visible = aircraft.filter(
+    ac => renderData.has(ac.hex) && shouldShowLabel(ac, pinnedHexes, labelConditions),
+  );
+
+  // Sort by priority so higher-priority aircraft claim best slots first
+  const priorityOf = (ac: Aircraft): number => {
+    if (pinnedHexes.has(ac.hex)) return 0;
+    if (
+      (!!ac.emergency && ac.emergency !== 'none') ||
+      ac.squawk === '7700' || ac.squawk === '7600' || ac.squawk === '7500'
+    ) return 1;
+    if (['TXI', 'GND', 'T/O', 'APP'].includes(ac.phase)) return 2;
+    return 3;
+  };
+  visible.sort((a, b) => {
+    const diff = priorityOf(a) - priorityOf(b);
+    if (diff !== 0) return diff;
+    const ca = a.flight ?? a.hex;
+    const cb = b.flight ?? b.hex;
+    return ca < cb ? -1 : ca > cb ? 1 : 0;
+  });
+
+  // Phase 1: Greedy slot selection
+  type Committed = { lx: number; ly: number; hex: string };
+  const committed: Committed[] = [];
+
+  for (const ac of visible) {
+    const { pos } = renderData.get(ac.hex)!;
+
+    if (visible.length === 1) {
+      // Fast path: single aircraft — skip scoring, go straight to preferred slot
+      const angle = -Math.PI / 4;
+      const lx = Math.max(0, Math.min(pos.x + Math.cos(angle) * LABEL_OFFSET_NEAR * s - labelW / 2, width - labelW));
+      const ly = Math.max(0, Math.min(pos.y + Math.sin(angle) * LABEL_OFFSET_NEAR * s - labelH / 2, height - labelH));
+      committed.push({ lx, ly, hex: ac.hex });
+      continue;
+    }
+
+    let bestScore = Infinity;
+    let bestLx = 0;
+    let bestLy = 0;
+
+    for (const angle of SLOT_ANGLES) {
+      for (const radius of [LABEL_OFFSET_NEAR * s, LABEL_OFFSET_FAR * s]) {
+        const lx = pos.x + Math.cos(angle) * radius - labelW / 2;
+        const ly = pos.y + Math.sin(angle) * radius - labelH / 2;
+
+        // Penalty: overlap with already-committed labels
+        let overlapScore = 0;
+        for (const c of committed) {
+          overlapScore += rectIntersectionArea(lx, ly, labelW, labelH, c.lx, c.ly, labelW, labelH);
+        }
+
+        // Penalty: pixels outside canvas bounds (weight heavily to keep labels on screen)
+        const edgeClip =
+          Math.max(0, -lx) +
+          Math.max(0, lx + labelW - width) +
+          Math.max(0, -ly) +
+          Math.max(0, ly + labelH - height);
+
+        // Penalty: angular distance from preferred angle (315° / upper-right)
+        const preferredAngle = -Math.PI / 4;
+        let angleDiff = Math.abs(angle - preferredAngle);
+        if (angleDiff > Math.PI) angleDiff = 2 * Math.PI - angleDiff;
+        const anglePenalty = angleDiff * LABEL_ANGLE_PENALTY;
+
+        const score = overlapScore + edgeClip * 10 + anglePenalty;
+        if (score < bestScore) {
+          bestScore = score;
+          bestLx = lx;
+          bestLy = ly;
+        }
+      }
+    }
+
+    committed.push({ lx: bestLx, ly: bestLy, hex: ac.hex });
+  }
+
+  // Snapshot greedy positions before nudge — used for opacity (reflects slot contention)
+  const preNudge = committed.map(c => ({ hex: c.hex, lx: c.lx, ly: c.ly }));
+
+  // Phase 2: Force nudge — one O(n²) pass to push overlapping pairs apart
+  for (let i = 0; i < committed.length; i++) {
+    for (let j = i + 1; j < committed.length; j++) {
+      const a = committed[i];
+      const b = committed[j];
+      const ix = Math.max(0, Math.min(a.lx + labelW, b.lx + labelW) - Math.max(a.lx, b.lx));
+      const iy = Math.max(0, Math.min(a.ly + labelH, b.ly + labelH) - Math.max(a.ly, b.ly));
+      if (ix <= 0 || iy <= 0) continue;
+      // Push along the axis with the smaller overlap
+      if (ix < iy) {
+        const push = ix / 2;
+        if (a.lx < b.lx) { a.lx -= push; b.lx += push; }
+        else { a.lx += push; b.lx -= push; }
+      } else {
+        const push = iy / 2;
+        if (a.ly < b.ly) { a.ly -= push; b.ly += push; }
+        else { a.ly += push; b.ly -= push; }
+      }
+      // Clamp both to canvas bounds
+      a.lx = Math.max(0, Math.min(a.lx, width - labelW));
+      a.ly = Math.max(0, Math.min(a.ly, height - labelH));
+      b.lx = Math.max(0, Math.min(b.lx, width - labelW));
+      b.ly = Math.max(0, Math.min(b.ly, height - labelH));
+    }
+  }
+
+  // Remove stale lerp entries for aircraft no longer visible
+  const liveHexes = new Set(visible.map(ac => ac.hex));
+  for (const key of labelPosMap.keys()) {
+    if (!liveHexes.has(key)) labelPosMap.delete(key);
+  }
+
+  // Apply lerp and compute final placements with opacity
+  const result = new Map<string, LabelPlacement>();
+
+  for (const c of committed) {
+    const { pos } = renderData.get(c.hex)!;
+
+    // Initialise new entries at target; lerp existing ones toward target
+    if (!labelPosMap.has(c.hex) || skipLerp) {
+      labelPosMap.set(c.hex, { x: c.lx, y: c.ly });
+    } else {
+      const cur = labelPosMap.get(c.hex)!;
+      cur.x += (c.lx - cur.x) * LABEL_LERP;
+      cur.y += (c.ly - cur.y) * LABEL_LERP;
+    }
+
+    const cur = labelPosMap.get(c.hex)!;
+    const lx = cur.x;
+    const ly = cur.y;
+
+    // Opacity: fade proportionally to slot contention — measured from pre-nudge greedy positions
+    // so that extreme clusters that forced overlapping placement become more transparent.
+    const labelArea = labelW * labelH;
+    let totalOverlap = 0;
+    for (const other of preNudge) {
+      if (other.hex === c.hex) continue;
+      totalOverlap += rectIntersectionArea(lx, ly, labelW, labelH, other.lx, other.ly, labelW, labelH);
+    }
+    const overlapRatio = totalOverlap / labelArea;
+    const opacity = 1 - (1 - LABEL_MIN_OPACITY) * Math.min(1, overlapRatio * 3);
+
+    // Connector: nearest point on the label's bounding edge to the aircraft center
+    const connX = Math.max(lx, Math.min(lx + labelW, pos.x));
+    const connY = Math.max(ly, Math.min(ly + labelH, pos.y));
+
+    result.set(c.hex, { lx, ly, opacity, connX, connY });
+  }
+
+  return result;
+}
+
 function drawAircraftLabels(params: RadarDrawParams, renderData: Map<string, AircraftRenderData>) {
   const { ctx, width, height, aircraft, theme, labelConditions, pinnedHexes, zoomLevel } = params;
   const textColor = theme === 'dark' ? '#e5e7eb' : '#1f2937';
