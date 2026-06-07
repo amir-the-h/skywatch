@@ -15,12 +15,12 @@ function ac(overrides: Partial<Aircraft> = {}): Aircraft {
 }
 
 const defaults: FilterCriteria = {
-  callsign: '',
+  callsigns: [],
   altMin: 0,
   altMax: 60000,
   phases: [],
-  manufacturer: '',
-  model: '',
+  manufacturers: [],
+  models: [],
 };
 
 describe('matchesFilter', () => {
@@ -29,20 +29,24 @@ describe('matchesFilter', () => {
   });
 
   describe('callsign filter', () => {
-    it('matches partial callsign case-insensitively', () => {
-      expect(matchesFilter(ac({ flight: 'UAL123' }), { ...defaults, callsign: 'ual' })).toBe(true);
+    it('matches exact callsign', () => {
+      expect(matchesFilter(ac({ flight: 'UAL123' }), { ...defaults, callsigns: ['UAL123'] })).toBe(true);
     });
 
     it('rejects non-matching callsign', () => {
-      expect(matchesFilter(ac({ flight: 'RYR456' }), { ...defaults, callsign: 'ual' })).toBe(false);
+      expect(matchesFilter(ac({ flight: 'RYR456' }), { ...defaults, callsigns: ['UAL123'] })).toBe(false);
     });
 
-    it('passes when callsign filter is empty', () => {
-      expect(matchesFilter(ac({ flight: 'RYR456' }), { ...defaults, callsign: '' })).toBe(true);
+    it('passes when callsigns filter is empty', () => {
+      expect(matchesFilter(ac({ flight: 'RYR456' }), { ...defaults, callsigns: [] })).toBe(true);
     });
 
     it('handles aircraft with no flight field', () => {
-      expect(matchesFilter(ac({ flight: '' }), { ...defaults, callsign: 'ual' })).toBe(false);
+      expect(matchesFilter(ac({ flight: '' }), { ...defaults, callsigns: ['UAL123'] })).toBe(false);
+    });
+
+    it('matches any of multiple selected callsigns', () => {
+      expect(matchesFilter(ac({ flight: 'RYR456' }), { ...defaults, callsigns: ['UAL123', 'RYR456'] })).toBe(true);
     });
   });
 
@@ -86,34 +90,42 @@ describe('matchesFilter', () => {
   });
 
   describe('manufacturer filter', () => {
-    it('matches partial manufacturer in ac.desc case-insensitively', () => {
-      expect(matchesFilter(ac({ desc: 'BOEING 737-800' }), { ...defaults, manufacturer: 'boeing' })).toBe(true);
+    it('matches exact manufacturer in ac.desc', () => {
+      expect(matchesFilter(ac({ desc: 'BOEING 737-800' }), { ...defaults, manufacturers: ['BOEING 737-800'] })).toBe(true);
     });
 
     it('rejects non-matching manufacturer', () => {
-      expect(matchesFilter(ac({ desc: 'BOEING 737-800' }), { ...defaults, manufacturer: 'airbus' })).toBe(false);
+      expect(matchesFilter(ac({ desc: 'BOEING 737-800' }), { ...defaults, manufacturers: ['AIRBUS A320'] })).toBe(false);
     });
 
-    it('passes when manufacturer is empty', () => {
-      expect(matchesFilter(ac(), { ...defaults, manufacturer: '' })).toBe(true);
+    it('passes when manufacturers is empty', () => {
+      expect(matchesFilter(ac(), { ...defaults, manufacturers: [] })).toBe(true);
     });
 
     it('passes when aircraft has no desc and filter is empty', () => {
-      expect(matchesFilter(ac({ desc: undefined }), { ...defaults, manufacturer: '' })).toBe(true);
+      expect(matchesFilter(ac({ desc: undefined }), { ...defaults, manufacturers: [] })).toBe(true);
     });
 
     it('rejects when aircraft has no desc and filter is set', () => {
-      expect(matchesFilter(ac({ desc: undefined }), { ...defaults, manufacturer: 'boeing' })).toBe(false);
+      expect(matchesFilter(ac({ desc: undefined }), { ...defaults, manufacturers: ['BOEING 737-800'] })).toBe(false);
+    });
+
+    it('matches any of multiple selected manufacturers', () => {
+      expect(matchesFilter(ac({ desc: 'AIRBUS A320' }), { ...defaults, manufacturers: ['BOEING 737-800', 'AIRBUS A320'] })).toBe(true);
     });
   });
 
   describe('model filter', () => {
-    it('matches partial model in ac.t case-insensitively', () => {
-      expect(matchesFilter(ac({ t: 'B738' }), { ...defaults, model: 'b73' })).toBe(true);
+    it('matches exact model in ac.t', () => {
+      expect(matchesFilter(ac({ t: 'B738' }), { ...defaults, models: ['B738'] })).toBe(true);
     });
 
     it('rejects non-matching model', () => {
-      expect(matchesFilter(ac({ t: 'B738' }), { ...defaults, model: 'a320' })).toBe(false);
+      expect(matchesFilter(ac({ t: 'B738' }), { ...defaults, models: ['A320'] })).toBe(false);
+    });
+
+    it('matches any of multiple selected models', () => {
+      expect(matchesFilter(ac({ t: 'A320' }), { ...defaults, models: ['B738', 'A320'] })).toBe(true);
     });
   });
 
@@ -122,14 +134,14 @@ describe('matchesFilter', () => {
       // callsign matches but phase doesn't
       expect(matchesFilter(
         ac({ flight: 'UAL123', alt_baro: 35000, baro_rate: 0 }),
-        { ...defaults, callsign: 'ual', phases: ['CLB'] }
+        { ...defaults, callsigns: ['UAL123'], phases: ['CLB'] }
       )).toBe(false);
     });
 
     it('passes when all criteria match', () => {
       expect(matchesFilter(
         ac({ flight: 'UAL123', alt_baro: 35000, baro_rate: 0 }),
-        { ...defaults, callsign: 'ual', phases: ['CRZ'] }
+        { ...defaults, callsigns: ['UAL123'], phases: ['CRZ'] }
       )).toBe(true);
     });
   });
