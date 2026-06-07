@@ -55,3 +55,11 @@ export function aircraftColor(typeCode: string, theme: 'dark' | 'light'): string
   const saturation = 90 + (djb2(typeCode + 'S') % 10);
   return `hsl(${hue}, ${saturation}%, ${lightness}%)`;
 }
+
+export function lightenHsl(hslStr: string, amount: number): string {
+  const m = hslStr.match(/^hsl\((\d+),\s*(\d+)%,\s*(\d+)%\)$/);
+  if (!m) return hslStr;
+  const [, h, s, l] = m.map(Number);
+  const newL = Math.min(100, l + Math.round(amount * 100));
+  return `hsl(${h}, ${s}%, ${newL}%)`;
+}
