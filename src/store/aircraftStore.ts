@@ -2,8 +2,11 @@
 import { create } from 'zustand';
 import type { Aircraft } from '../types/aircraft';
 
+const PATH_HISTORY_MAX = 50;
+
 interface AircraftStore {
   aircraft: Map<string, Aircraft>;
+  pathHistory: Map<string, { lat: number; lon: number }[]>;
   pinnedHexes: Set<string>;
   hoveredHex: string | null;
   lastUpdated: number | null;
@@ -17,6 +20,7 @@ interface AircraftStore {
 
 export const useAircraftStore = create<AircraftStore>((set) => ({
   aircraft: new Map(),
+  pathHistory: new Map(),
   pinnedHexes: new Set(),
   hoveredHex: null,
   lastUpdated: null,
@@ -24,6 +28,7 @@ export const useAircraftStore = create<AircraftStore>((set) => ({
   mergeAircraft: (incoming) =>
     set((state) => {
       const next = new Map(state.aircraft);
+      const nextHistory = new Map(state.pathHistory);
       const now = Date.now();
       for (const ac of incoming) {
         const prev = next.get(ac.hex);
@@ -33,18 +38,25 @@ export const useAircraftStore = create<AircraftStore>((set) => ({
           _renderLon: prev ? prev._renderLon : ac.lon,
           _lastSeen: now,
         });
+        const existing = nextHistory.get(ac.hex) ?? [];
+        const updated = [...existing, { lat: ac.lat, lon: ac.lon }];
+        nextHistory.set(ac.hex, updated.slice(-PATH_HISTORY_MAX));
       }
-      return { aircraft: next, lastUpdated: now };
+      return { aircraft: next, pathHistory: nextHistory, lastUpdated: now };
     }),
 
   removeStale: (activeHexes) =>
     set((state) => {
       const next = new Map(state.aircraft);
+      const nextHistory = new Map(state.pathHistory);
       for (const hex of next.keys()) {
-        if (!activeHexes.has(hex)) next.delete(hex);
+        if (!activeHexes.has(hex)) {
+          next.delete(hex);
+          nextHistory.delete(hex);
+        }
       }
       const newPinned = new Set([...state.pinnedHexes].filter((h) => next.has(h)));
-      return { aircraft: next, pinnedHexes: newPinned };
+      return { aircraft: next, pathHistory: nextHistory, pinnedHexes: newPinned };
     }),
 
   pin: (hex) =>
