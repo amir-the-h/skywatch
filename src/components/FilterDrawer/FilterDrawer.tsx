@@ -93,7 +93,10 @@ export function FilterDrawer() {
                 max={60000}
                 step={500}
                 value={filters.altMin}
-                onChange={(e) => filters.setAltRange(Math.max(0, parseInt(e.target.value) || 0), filters.altMax)}
+                onChange={(e) => {
+                  const next = Math.max(0, parseInt(e.target.value) || 0);
+                  filters.setAltRange(Math.min(next, filters.altMax), filters.altMax);
+                }}
               />
             </label>
             <label className="filter-field">
@@ -104,7 +107,10 @@ export function FilterDrawer() {
                 max={60000}
                 step={500}
                 value={filters.altMax}
-                onChange={(e) => filters.setAltRange(filters.altMin, Math.min(60000, parseInt(e.target.value) || 60000))}
+                onChange={(e) => {
+                  const next = Math.min(60000, parseInt(e.target.value) || 60000);
+                  filters.setAltRange(filters.altMin, Math.max(next, filters.altMin));
+                }}
               />
             </label>
           </div>
@@ -115,6 +121,7 @@ export function FilterDrawer() {
               <button
                 key={p}
                 className={`phase-toggle${filters.phases.includes(p) ? ' phase-toggle--active' : ''}`}
+                aria-pressed={filters.phases.includes(p)}
                 onClick={() =>
                   filters.setPhases(
                     filters.phases.includes(p)
