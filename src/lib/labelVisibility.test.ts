@@ -7,7 +7,7 @@ function ac(overrides: Partial<Aircraft> = {}): Aircraft {
   return {
     hex: 'aaa', flight: 'TK1', r: 'TC-A', t: 'B738',
     lat: 41, lon: 28, alt_baro: 35000, gs: 480, track: 0,
-    baro_rate: 0, seen: 1,
+    baro_rate: 0, seen: 1, phase: 'CRZ', pathHistory: [],
     _renderLat: 41, _renderLon: 28, _lastSeen: 0,
     ...overrides,
   };
@@ -29,23 +29,23 @@ describe('shouldShowLabel', () => {
 
   describe("'airport' condition", () => {
     it('returns true for taxiing aircraft', () => {
-      expect(shouldShowLabel(ac({ alt_baro: 200, gs: 25 }), emptyPinned, ['airport'])).toBe(true);
+      expect(shouldShowLabel(ac({ alt_baro: 200, gs: 25, phase: 'TXI' }), emptyPinned, ['airport'])).toBe(true);
     });
 
     it('returns true for ground aircraft', () => {
-      expect(shouldShowLabel(ac({ alt_baro: 100, gs: 2 }), emptyPinned, ['airport'])).toBe(true);
+      expect(shouldShowLabel(ac({ alt_baro: 100, gs: 2, phase: 'GND' }), emptyPinned, ['airport'])).toBe(true);
     });
 
     it('returns true for takeoff aircraft', () => {
-      expect(shouldShowLabel(ac({ alt_baro: 2000, gs: 160, baro_rate: 1500 }), emptyPinned, ['airport'])).toBe(true);
+      expect(shouldShowLabel(ac({ alt_baro: 2000, gs: 160, baro_rate: 1500, phase: 'T/O' }), emptyPinned, ['airport'])).toBe(true);
     });
 
     it('returns true for approach aircraft', () => {
-      expect(shouldShowLabel(ac({ alt_baro: 3000, gs: 180, baro_rate: -600 }), emptyPinned, ['airport'])).toBe(true);
+      expect(shouldShowLabel(ac({ alt_baro: 3000, gs: 180, baro_rate: -600, phase: 'APP' }), emptyPinned, ['airport'])).toBe(true);
     });
 
     it('returns false for cruising aircraft', () => {
-      expect(shouldShowLabel(ac({ alt_baro: 35000, baro_rate: 0 }), emptyPinned, ['airport'])).toBe(false);
+      expect(shouldShowLabel(ac({ alt_baro: 35000, baro_rate: 0, phase: 'CRZ' }), emptyPinned, ['airport'])).toBe(false);
     });
   });
 
@@ -91,7 +91,7 @@ describe('shouldShowLabel', () => {
     });
 
     it('returns false when no condition matches', () => {
-      expect(shouldShowLabel(ac({ alt_baro: 35000, baro_rate: 0 }), emptyPinned, ['airport', 'pinned'])).toBe(false);
+      expect(shouldShowLabel(ac({ alt_baro: 35000, baro_rate: 0, phase: 'CRZ' }), emptyPinned, ['airport', 'pinned'])).toBe(false);
     });
   });
 
