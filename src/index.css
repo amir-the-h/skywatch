@@ -780,6 +780,14 @@ body.theme-light {
   align-items: flex-end;
 }
 
+/* ─── Radar reset button ─── */
+.radar-reset-btn {
+  position: absolute;
+  bottom: 60px;
+  right: 12px;
+  z-index: 100;
+}
+
 /* ─── Modal handle (mobile bottom sheet) ─── */
 .modal-handle {
   display: none;

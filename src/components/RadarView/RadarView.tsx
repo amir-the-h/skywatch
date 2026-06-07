@@ -62,6 +62,14 @@ export function RadarView() {
 
   const [hoveredAirport, setHoveredAirport] = useState<Airport | null>(null);
   const [zoomScale, setZoomScale] = useState(1);
+  const [isTransformed, setIsTransformed] = useState(false);
+
+  const resetView = useCallback(() => {
+    zoomLevelRef.current = 1;
+    panOffsetRef.current = { x: 0, y: 0 };
+    setZoomScale(1);
+    setIsTransformed(false);
+  }, []);
 
   // Reset zoom when radius changes
   useEffect(() => {
@@ -138,6 +146,7 @@ export function RadarView() {
         x: (1 - f) * mx + f * panOffsetRef.current.x,
         y: (1 - f) * my + f * panOffsetRef.current.y,
       };
+      setIsTransformed(true);
     };
 
     canvas.addEventListener('wheel', handleWheel, { passive: false });
@@ -241,6 +250,11 @@ export function RadarView() {
           if (isDraggingRef.current) {
             isDraggingRef.current = false;
             e.currentTarget.style.cursor = 'default';
+            setIsTransformed(
+              panOffsetRef.current.x !== 0 ||
+              panOffsetRef.current.y !== 0 ||
+              zoomLevelRef.current !== 1,
+            );
             return;
           }
           const hex = hitTest(e.clientX, e.clientY);
@@ -257,6 +271,13 @@ export function RadarView() {
           }
         }}
         onMouseLeave={(e) => {
+          if (isDraggingRef.current) {
+            setIsTransformed(
+              panOffsetRef.current.x !== 0 ||
+              panOffsetRef.current.y !== 0 ||
+              zoomLevelRef.current !== 1,
+            );
+          }
           isDraggingRef.current = false;
           e.currentTarget.style.cursor = 'default';
           setHovered(null);
@@ -268,9 +289,7 @@ export function RadarView() {
             clearTimeout(pinTimeoutRef.current);
             pinTimeoutRef.current = null;
           }
-          zoomLevelRef.current = 1;
-          panOffsetRef.current = { x: 0, y: 0 };
-          setZoomScale(1);
+          resetView();
         }}
       />
 
@@ -290,6 +309,16 @@ export function RadarView() {
           return <FlightBubble key={hex} aircraft={ac} color={color} />;
         })}
       </div>
+
+      {isTransformed && (
+        <button
+          className="icon-btn radar-reset-btn"
+          onClick={resetView}
+          title="Reset view"
+        >
+          ⌖
+        </button>
+      )}
     </div>
   );
 }
