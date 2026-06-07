@@ -24,12 +24,7 @@ export function applyPan(
   };
 }
 
-export function applyZoom(
-  zoomLevel: number,
-  panOffset: PanOffset,
-  deltaY: number
-): { zoomLevel: number; panOffset: PanOffset } {
+export function applyZoom(zoomLevel: number, deltaY: number): number {
   const factor = Math.pow(0.999, deltaY);
-  const newZoom = Math.min(20, Math.max(0.25, zoomLevel * factor));
-  return { zoomLevel: newZoom, panOffset };
+  return Math.min(20, Math.max(0.25, zoomLevel * factor));
 }
