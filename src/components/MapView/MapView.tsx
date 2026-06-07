@@ -1,10 +1,11 @@
 // src/components/MapView/MapView.tsx
-import { useEffect, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { MapContainer, TileLayer, useMap } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
 import { useAircraftStore } from '../../store/aircraftStore';
 import { useSettingsStore } from '../../hooks/useSettings';
 import { AircraftMarker } from './AircraftMarker';
+import { AircraftOverlay } from './AircraftOverlay';
 import { FlightPreview } from '../FlightBubble/FlightPreview';
 import { FlightBubble } from '../FlightBubble/FlightBubble';
 import { interpolatePosition } from '../../lib/interpolate';
@@ -61,7 +62,10 @@ export function MapView() {
           attribution={tileSource === 'osm' ? OSM_ATTR : SAT_ATTR}
         />
         {aircraft.map((ac) => (
-          <AircraftMarker key={ac.hex} aircraft={ac} />
+          <React.Fragment key={ac.hex}>
+            <AircraftOverlay aircraft={ac} />
+            <AircraftMarker aircraft={ac} />
+          </React.Fragment>
         ))}
       </MapContainer>
 
