@@ -1,18 +1,16 @@
 // src/store/aircraftStore.ts
 import { create } from 'zustand';
 import type { Aircraft } from '../types/aircraft';
+import type { BackendAircraft } from '../../shared/types';
 import { interpolatePosition } from '../lib/interpolate';
-
-const PATH_HISTORY_MAX = 50;
 
 interface AircraftStore {
   aircraft: Map<string, Aircraft>;
-  pathHistory: Map<string, { lat: number; lon: number }[]>;
   pinnedHexes: Set<string>;
   hoveredHex: string | null;
   lastUpdated: number | null;
 
-  mergeAircraft: (incoming: Aircraft[]) => void;
+  mergeAircraft: (incoming: BackendAircraft[]) => void;
   removeStale: (hexes: Set<string>) => void;
   pin: (hex: string) => void;
   unpin: (hex: string) => void;
@@ -21,7 +19,6 @@ interface AircraftStore {
 
 export const useAircraftStore = create<AircraftStore>((set) => ({
   aircraft: new Map(),
-  pathHistory: new Map(),
   pinnedHexes: new Set(),
   hoveredHex: null,
   lastUpdated: null,
@@ -29,7 +26,6 @@ export const useAircraftStore = create<AircraftStore>((set) => ({
   mergeAircraft: (incoming) =>
     set((state) => {
       const next = new Map(state.aircraft);
-      const nextHistory = new Map(state.pathHistory);
       const now = Date.now();
       for (const ac of incoming) {
         const prev = next.get(ac.hex);
@@ -39,29 +35,25 @@ export const useAircraftStore = create<AircraftStore>((set) => ({
         const advanced = prev ? interpolatePosition(prev, now) : null;
         next.set(ac.hex, {
           ...ac,
+          pathHistory: ac.pathHistory,
           _renderLat: advanced ? advanced._renderLat : ac.lat,
           _renderLon: advanced ? advanced._renderLon : ac.lon,
           _lastSeen: now,
         });
-        const existing = nextHistory.get(ac.hex) ?? [];
-        const updated = [...existing, { lat: ac.lat, lon: ac.lon }];
-        nextHistory.set(ac.hex, updated.slice(-PATH_HISTORY_MAX));
       }
-      return { aircraft: next, pathHistory: nextHistory, lastUpdated: now };
+      return { aircraft: next, lastUpdated: now };
     }),
 
   removeStale: (activeHexes) =>
     set((state) => {
       const next = new Map(state.aircraft);
-      const nextHistory = new Map(state.pathHistory);
       for (const hex of next.keys()) {
         if (!activeHexes.has(hex)) {
           next.delete(hex);
-          nextHistory.delete(hex);
         }
       }
       const newPinned = new Set([...state.pinnedHexes].filter((h) => next.has(h)));
-      return { aircraft: next, pathHistory: nextHistory, pinnedHexes: newPinned };
+      return { aircraft: next, pinnedHexes: newPinned };
     }),
 
   pin: (hex) =>
