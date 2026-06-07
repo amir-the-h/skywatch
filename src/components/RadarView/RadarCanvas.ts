@@ -8,9 +8,27 @@ import { getPhaseColor } from '../../lib/flightPhase';
 import { shouldShowLabel } from '../../lib/labelVisibility';
 import { iconScaleForZoom, screenPosToCull } from './zoomScale';
 
-interface AircraftRenderData {
+export interface AircraftRenderData {
   pos: { x: number; y: number };
   color: string;
+}
+
+export interface LabelPlacement {
+  lx: number;
+  ly: number;
+  opacity: number;
+  connX: number;
+  connY: number;
+}
+
+export interface LabelComputeParams {
+  width: number;
+  height: number;
+  aircraft: Aircraft[];
+  pinnedHexes: Set<string>;
+  labelConditions: LabelCondition[];
+  panOffset: { x: number; y: number };
+  zoomLevel: number;
 }
 
 export interface RadarDrawParams {
@@ -269,7 +287,42 @@ function drawAllAircraft(params: RadarDrawParams): Map<string, AircraftRenderDat
 
 const LABEL_W = 100;
 const LABEL_H = 52;
-const LABEL_OFFSET = 40;
+const LABEL_OFFSET_NEAR = 44;
+const LABEL_OFFSET_FAR = 80;
+const LABEL_LERP = 0.12;
+const LABEL_MIN_OPACITY = 0.45;
+const LABEL_ANGLE_PENALTY = 200;
+const LABEL_RESET_THRESHOLD = 40;
+
+const SLOT_ANGLES = [
+  -Math.PI / 4,        // 315° upper-right (preferred)
+  -Math.PI / 2,        // 270° up
+  0,                   // 0°   right
+  (-3 * Math.PI) / 4,  // 225° upper-left
+  Math.PI / 4,         // 45°  lower-right
+  Math.PI / 2,         // 90°  down
+  Math.PI,             // 180° left
+  (3 * Math.PI) / 4,   // 135° lower-left
+];
+
+const labelPosMap = new Map<string, { x: number; y: number }>();
+let prevPan = { x: 0, y: 0 };
+let prevZoom = 1;
+
+export function resetLabelState(): void {
+  labelPosMap.clear();
+  prevPan = { x: 0, y: 0 };
+  prevZoom = 1;
+}
+
+function rectIntersectionArea(
+  ax: number, ay: number, aw: number, ah: number,
+  bx: number, by: number, bw: number, bh: number,
+): number {
+  const ix = Math.max(0, Math.min(ax + aw, bx + bw) - Math.max(ax, bx));
+  const iy = Math.max(0, Math.min(ay + ah, by + bh) - Math.max(ay, by));
+  return ix * iy;
+}
 
 function drawAircraftLabels(params: RadarDrawParams, renderData: Map<string, AircraftRenderData>) {
   const { ctx, width, height, aircraft, theme, labelConditions, pinnedHexes, zoomLevel } = params;
@@ -278,7 +331,7 @@ function drawAircraftLabels(params: RadarDrawParams, renderData: Map<string, Air
 
   const labelW = LABEL_W * s;
   const labelH = LABEL_H * s;
-  const labelOffset = LABEL_OFFSET * s;
+  const labelOffset = LABEL_OFFSET_NEAR * s;
   const pad = 7 * s;
   const r = 5 * s;
 
