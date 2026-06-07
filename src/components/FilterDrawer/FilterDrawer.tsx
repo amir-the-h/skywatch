@@ -1,5 +1,7 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useFilterStore, isFilterActive, DEFAULT_ALT_MIN, DEFAULT_ALT_MAX } from '../../store/filterStore';
+import { useAircraftStore } from '../../store/aircraftStore';
+import { MultiSelect } from './MultiSelect';
 import type { FlightPhase } from '../../lib/flightPhase';
 
 const ALL_PHASES: FlightPhase[] = ['TXI', 'GND', 'T/O', 'APP', 'CLB', 'DSC', 'CRZ'];
@@ -7,17 +9,31 @@ const ALL_PHASES: FlightPhase[] = ['TXI', 'GND', 'T/O', 'APP', 'CLB', 'DSC', 'CR
 export function FilterDrawer() {
   const [open, setOpen] = useState(false);
   const filters = useFilterStore();
+  const aircraftMap = useAircraftStore((s) => s.aircraft);
   const active = isFilterActive(filters);
 
+  const callsignOptions = useMemo(() =>
+    [...new Set([...aircraftMap.values()].map((ac) => ac.flight ?? '').filter(Boolean))].sort(),
+    [aircraftMap]
+  );
+  const manufacturerOptions = useMemo(() =>
+    [...new Set([...aircraftMap.values()].map((ac) => ac.desc ?? '').filter(Boolean))].sort(),
+    [aircraftMap]
+  );
+  const modelOptions = useMemo(() =>
+    [...new Set([...aircraftMap.values()].map((ac) => ac.t ?? '').filter(Boolean))].sort(),
+    [aircraftMap]
+  );
+
   const chips: { key: string; label: string; clear: () => void }[] = [];
-  if (filters.callsign) {
-    chips.push({ key: 'callsign', label: filters.callsign, clear: () => filters.setCallsign('') });
+  for (const cs of filters.callsigns) {
+    chips.push({ key: `cs-${cs}`, label: cs, clear: () => filters.setCallsigns(filters.callsigns.filter((v) => v !== cs)) });
   }
-  if (filters.manufacturer) {
-    chips.push({ key: 'mfr', label: `mfr:${filters.manufacturer}`, clear: () => filters.setManufacturer('') });
+  for (const m of filters.manufacturers) {
+    chips.push({ key: `mfr-${m}`, label: `mfr:${m}`, clear: () => filters.setManufacturers(filters.manufacturers.filter((v) => v !== m)) });
   }
-  if (filters.model) {
-    chips.push({ key: 'model', label: `mdl:${filters.model}`, clear: () => filters.setModel('') });
+  for (const m of filters.models) {
+    chips.push({ key: `mdl-${m}`, label: `mdl:${m}`, clear: () => filters.setModels(filters.models.filter((v) => v !== m)) });
   }
   if (filters.altMin > DEFAULT_ALT_MIN || filters.altMax < DEFAULT_ALT_MAX) {
     chips.push({
@@ -54,34 +70,28 @@ export function FilterDrawer() {
 
       {open && (
         <div className="filter-panel">
-          <div className="filter-row">
-            <label className="filter-field">
-              <span>Callsign / Flight</span>
-              <input
-                type="text"
-                value={filters.callsign}
-                onChange={(e) => filters.setCallsign(e.target.value)}
-                placeholder="e.g. UAL"
-              />
-            </label>
-            <label className="filter-field">
-              <span>Manufacturer</span>
-              <input
-                type="text"
-                value={filters.manufacturer}
-                onChange={(e) => filters.setManufacturer(e.target.value)}
-                placeholder="e.g. Boeing"
-              />
-            </label>
-            <label className="filter-field">
-              <span>Model</span>
-              <input
-                type="text"
-                value={filters.model}
-                onChange={(e) => filters.setModel(e.target.value)}
-                placeholder="e.g. B738"
-              />
-            </label>
+          <div className="filter-row filter-row--multiselect">
+            <MultiSelect
+              label="Callsign / Flight"
+              options={callsignOptions}
+              selected={filters.callsigns}
+              onChange={filters.setCallsigns}
+              placeholder="Any callsign"
+            />
+            <MultiSelect
+              label="Manufacturer"
+              options={manufacturerOptions}
+              selected={filters.manufacturers}
+              onChange={filters.setManufacturers}
+              placeholder="Any manufacturer"
+            />
+            <MultiSelect
+              label="Model"
+              options={modelOptions}
+              selected={filters.models}
+              onChange={filters.setModels}
+              placeholder="Any model"
+            />
           </div>
 
           <div className="filter-row">

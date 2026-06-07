@@ -3,19 +3,19 @@ import type { FlightPhase } from './flightPhase';
 import { inferFlightPhase } from './flightPhase';
 
 export interface FilterCriteria {
-  callsign: string;
+  callsigns: string[];
   altMin: number;
   altMax: number;
   phases: FlightPhase[];
-  manufacturer: string;
-  model: string;
+  manufacturers: string[];
+  models: string[];
 }
 
 export function matchesFilter(ac: Aircraft, filters: FilterCriteria): boolean {
-  if (filters.callsign !== '' && !ac.flight?.toLowerCase().includes(filters.callsign.toLowerCase())) return false;
+  if (filters.callsigns.length > 0 && !filters.callsigns.includes(ac.flight ?? '')) return false;
   if (ac.alt_baro < filters.altMin || ac.alt_baro > filters.altMax) return false;
   if (filters.phases.length > 0 && !filters.phases.includes(inferFlightPhase(ac))) return false;
-  if (filters.manufacturer !== '' && !ac.desc?.toLowerCase().includes(filters.manufacturer.toLowerCase())) return false;
-  if (filters.model !== '' && !ac.t?.toLowerCase().includes(filters.model.toLowerCase())) return false;
+  if (filters.manufacturers.length > 0 && !filters.manufacturers.includes(ac.desc ?? '')) return false;
+  if (filters.models.length > 0 && !filters.models.includes(ac.t ?? '')) return false;
   return true;
 }

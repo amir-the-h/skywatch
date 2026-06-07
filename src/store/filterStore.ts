@@ -6,38 +6,38 @@ export const DEFAULT_ALT_MIN = 0;
 export const DEFAULT_ALT_MAX = 60000;
 
 const DEFAULT_FILTER: FilterCriteria = {
-  callsign: '',
+  callsigns: [],
   altMin: DEFAULT_ALT_MIN,
   altMax: DEFAULT_ALT_MAX,
   phases: [],
-  manufacturer: '',
-  model: '',
+  manufacturers: [],
+  models: [],
 };
 
 export interface FilterStore extends FilterCriteria {
-  setCallsign: (v: string) => void;
+  setCallsigns: (v: string[]) => void;
   setAltRange: (min: number, max: number) => void;
   setPhases: (phases: FlightPhase[]) => void;
-  setManufacturer: (v: string) => void;
-  setModel: (v: string) => void;
+  setManufacturers: (v: string[]) => void;
+  setModels: (v: string[]) => void;
   reset: () => void;
 }
 
 export const useFilterStore = create<FilterStore>((set) => ({
   ...DEFAULT_FILTER,
-  setCallsign: (callsign) => set({ callsign }),
+  setCallsigns: (callsigns) => set({ callsigns }),
   setAltRange: (altMin, altMax) => set({ altMin, altMax }),
   setPhases: (phases) => set({ phases }),
-  setManufacturer: (manufacturer) => set({ manufacturer }),
-  setModel: (model) => set({ model }),
+  setManufacturers: (manufacturers) => set({ manufacturers }),
+  setModels: (models) => set({ models }),
   reset: () => set(DEFAULT_FILTER),
 }));
 
 export function isFilterActive(f: FilterCriteria): boolean {
   return (
-    f.callsign !== '' ||
-    f.manufacturer !== '' ||
-    f.model !== '' ||
+    f.callsigns.length > 0 ||
+    f.manufacturers.length > 0 ||
+    f.models.length > 0 ||
     f.altMin > DEFAULT_ALT_MIN ||
     f.altMax < DEFAULT_ALT_MAX ||
     f.phases.length > 0
