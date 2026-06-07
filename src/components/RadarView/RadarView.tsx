@@ -97,9 +97,6 @@ export function RadarView() {
 
     const handleWheel = (e: WheelEvent) => {
       e.preventDefault();
-      const rect = canvas.getBoundingClientRect();
-      const mx = e.clientX - rect.left - rect.width / 2;
-      const my = e.clientY - rect.top - rect.height / 2;
       const PIXELS_PER_LINE = 16;
       const PIXELS_PER_PAGE = 400;
       const normalizedDeltaY =
@@ -111,9 +108,6 @@ export function RadarView() {
       const result = applyZoom(
         zoomLevelRef.current,
         panOffsetRef.current,
-        mx, my,
-        canvas.width, canvas.height,
-        latRef.current, lngRef.current, radiusKmRef.current,
         normalizedDeltaY
       );
       zoomLevelRef.current = result.zoomLevel;
