@@ -338,6 +338,10 @@ body.theme-light {
   width: 100%;
   box-shadow: var(--shadow);
   backdrop-filter: blur(16px);
+  max-height: calc(100dvh - 48px);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
 }
 
 .modal-header {
@@ -358,6 +362,9 @@ body.theme-light {
   display: flex;
   flex-direction: column;
   gap: 14px;
+  overflow-y: auto;
+  flex: 1 1 0;
+  min-height: 0;
 }
 
 .modal-body label {
@@ -771,4 +778,35 @@ body.theme-light {
 
 .filter-row--multiselect {
   align-items: flex-end;
+}
+
+/* ─── Modal handle (mobile bottom sheet) ─── */
+.modal-handle {
+  display: none;
+  width: 36px;
+  height: 4px;
+  background: var(--border);
+  border-radius: 2px;
+  margin: 0 auto 12px;
+}
+
+@keyframes slideUp {
+  from { transform: translateY(100%); }
+  to   { transform: translateY(0); }
+}
+
+@media (max-width: 640px) {
+  .modal-handle { display: block; }
+
+  .modal-backdrop { align-items: flex-end; }
+
+  .modal {
+    min-width: unset;
+    width: 100%;
+    max-width: 100%;
+    border-radius: 16px 16px 0 0;
+    max-height: 85dvh;
+    padding-bottom: env(safe-area-inset-bottom, 16px);
+    animation: slideUp 0.25s ease-out;
+  }
 }

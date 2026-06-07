@@ -47,6 +47,7 @@ export function SettingsModal({ onClose }: Props) {
   return (
     <div className="modal-backdrop" onClick={onClose}>
       <div className="modal" onClick={(e) => e.stopPropagation()}>
+        <div className="modal-handle" />
         <div className="modal-header">
           <h2>Settings</h2>
           <button className="icon-btn" onClick={onClose} aria-label="Close">✕</button>
