@@ -117,9 +117,10 @@ function drawCardinals({ ctx, width, height, radiusKm, theme }: RadarDrawParams)
 }
 
 function drawAirports(params: RadarDrawParams) {
-  const { ctx, width, height, centerLat, centerLon, radiusKm, airports } = params;
+  const { ctx, width, height, centerLat, centerLon, radiusKm, airports, theme } = params;
   if (!airports.length) return;
 
+  const base = theme === 'dark' ? '255,255,255' : '0,0,0';
   const scale = Math.min(width, height) / 2 / radiusKm;
 
   for (const airport of airports) {
@@ -129,9 +130,9 @@ function drawAirports(params: RadarDrawParams) {
       ctx.save();
       ctx.beginPath();
       ctx.arc(center.x, center.y, 3, 0, Math.PI * 2);
-      ctx.fillStyle = 'rgba(74, 222, 128, 0.7)';
+      ctx.fillStyle = `rgba(${base}, 0.7)`;
       ctx.fill();
-      ctx.fillStyle = 'rgba(74, 222, 128, 0.65)';
+      ctx.fillStyle = `rgba(${base}, 0.65)`;
       ctx.font = '9px monospace';
       ctx.textAlign = 'left';
       ctx.textBaseline = 'top';
@@ -160,8 +161,8 @@ function drawAirports(params: RadarDrawParams) {
       ctx.save();
       ctx.translate(cx, cy);
       ctx.rotate(angle);
-      ctx.fillStyle = 'rgba(74, 222, 128, 0.12)';
-      ctx.strokeStyle = 'rgba(74, 222, 128, 0.45)';
+      ctx.fillStyle = `rgba(${base}, 0.12)`;
+      ctx.strokeStyle = `rgba(${base}, 0.45)`;
       ctx.lineWidth = 0.8;
       ctx.beginPath();
       ctx.rect(-lenPx / 2, -widthPx / 2, lenPx, widthPx);
@@ -171,7 +172,7 @@ function drawAirports(params: RadarDrawParams) {
     }
 
     if (maxLenPx >= 12) {
-      ctx.fillStyle = 'rgba(74, 222, 128, 0.65)';
+      ctx.fillStyle = `rgba(${base}, 0.65)`;
       ctx.font = '9px monospace';
       ctx.textAlign = 'left';
       ctx.textBaseline = 'top';
