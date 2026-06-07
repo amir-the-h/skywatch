@@ -4,7 +4,7 @@ import type { Airport } from '../../types/airport';
 import { aircraftColor, lightenHsl } from '../../lib/colorSystem';
 import { getAircraftFamily, SILHOUETTE_PATHS } from '../../lib/silhouettes';
 import { latLonToCanvas } from '../../lib/geoUtils';
-import { inferFlightPhase, getPhaseColor } from '../../lib/flightPhase';
+import { getPhaseColor } from '../../lib/flightPhase';
 import { shouldShowLabel } from '../../lib/labelVisibility';
 import { iconScaleForZoom, screenPosToCull } from './zoomScale';
 
@@ -289,7 +289,7 @@ function drawAircraftLabels(params: RadarDrawParams, renderData: Map<string, Air
     if (!shouldShowLabel(ac, pinnedHexes, labelConditions)) continue;
     const { pos, color } = rd;
     const callsign = ac.flight || ac.hex;
-    const phase = inferFlightPhase(ac);
+    const phase = ac.phase;
     const phaseColor = getPhaseColor(phase);
 
     let dx = labelOffset;
