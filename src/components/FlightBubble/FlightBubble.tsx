@@ -23,33 +23,49 @@ function getEmergencyLabel(aircraft: Aircraft): string | null {
 
 interface Props {
   aircraft: Aircraft;
+  color: string;
 }
 
-export function FlightBubble({ aircraft }: Props) {
+export function FlightBubble({ aircraft, color }: Props) {
   const unpin = useAircraftStore((s) => s.unpin);
   const [autopilotOpen, setAutopilotOpen] = useState(false);
   const emergencyLabel = getEmergencyLabel(aircraft);
+  const hasRoute = !!(aircraft.orig_iata || aircraft.dest_iata);
 
   return (
-    <div className={`flight-bubble ${emergencyLabel ? 'emergency' : ''}`}>
+    <div
+      className={`flight-bubble ${emergencyLabel ? 'emergency' : ''}`}
+      style={{ borderLeft: `3px solid ${color}` }}
+    >
       {emergencyLabel && (
         <div className="emergency-banner">{emergencyLabel}</div>
       )}
 
       <div className="bubble-header">
         <div>
-          <strong>{aircraft.flight || aircraft.hex}</strong>
+          <strong style={{ color }}>{aircraft.flight || aircraft.hex}</strong>
           {aircraft.r && <span className="reg"> · {aircraft.r}</span>}
         </div>
         <button className="icon-btn" onClick={() => unpin(aircraft.hex)} aria-label="Close">✕</button>
       </div>
 
       <div className="bubble-type">
-        {aircraft.t}{aircraft.year ? ` (${aircraft.year})` : ''}
+        {aircraft.t}{aircraft.year ? ` · ${aircraft.year}` : ''}{aircraft.ownOp ? ` · ${aircraft.ownOp}` : ''}
       </div>
 
-      {aircraft.ownOp && (
-        <div className="bubble-row">{aircraft.ownOp}</div>
+      {hasRoute && (
+        <div className="bubble-route" style={{ borderColor: 'rgba(255,255,255,0.08)', background: 'rgba(255,255,255,0.04)' }}>
+          <span className="route-codes">
+            {aircraft.orig_iata ?? '?'}
+            <span className="route-arrow"> → </span>
+            {aircraft.dest_iata ?? '?'}
+          </span>
+          {(aircraft.orig_name || aircraft.dest_name) && (
+            <div className="route-cities">
+              {[aircraft.orig_name, aircraft.dest_name].filter(Boolean).join(' → ')}
+            </div>
+          )}
+        </div>
       )}
 
       <div className="bubble-section">
@@ -77,7 +93,7 @@ export function FlightBubble({ aircraft }: Props) {
           open={autopilotOpen}
           onToggle={(e) => setAutopilotOpen((e.target as HTMLDetailsElement).open)}
         >
-          <summary>Autopilot</summary>
+          <summary>▼ Autopilot</summary>
           {aircraft.nav_altitude_mcp != null && (
             <div className="bubble-row">Target alt: {aircraft.nav_altitude_mcp.toLocaleString()} ft</div>
           )}
