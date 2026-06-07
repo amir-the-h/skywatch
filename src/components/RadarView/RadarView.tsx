@@ -167,6 +167,7 @@ export function RadarView() {
       const mx = clientX - rect.left - panOffsetRef.current.x;
       const my = clientY - rect.top - panOffsetRef.current.y;
       const effectiveRadius = radiusKmRef.current / zoomLevelRef.current;
+      const hitRadius = 18 * Math.sqrt(zoomLevelRef.current);
 
       for (const ac of aircraftMap.values()) {
         if (!matchesFilter(ac, filtersRef.current)) continue;
@@ -175,7 +176,7 @@ export function RadarView() {
           latRef.current, lngRef.current, effectiveRadius,
           canvas.width, canvas.height
         );
-        if (Math.hypot(mx - pos.x, my - pos.y) < 18) return ac.hex;
+        if (Math.hypot(mx - pos.x, my - pos.y) < hitRadius) return ac.hex;
       }
       return null;
     },
