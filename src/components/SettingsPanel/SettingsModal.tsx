@@ -148,6 +148,45 @@ export function SettingsModal({ onClose }: Props) {
             );
           })}
 
+          <div className="modal-section-title">Airports</div>
+
+          <label>
+            <input
+              type="checkbox"
+              checked={settings.showAirports}
+              onChange={(e) => settings.update({ showAirports: e.target.checked })}
+            />
+            Show airports on radar
+          </label>
+
+          {settings.showAirports && (
+            <>
+              {(['large_airport', 'medium_airport', 'small_airport'] as const).map((type) => {
+                const labels: Record<string, string> = {
+                  large_airport: 'Large (international)',
+                  medium_airport: 'Medium (regional)',
+                  small_airport: 'Small (local)',
+                };
+                const checked = settings.airportTypes.includes(type);
+                return (
+                  <label key={type} style={{ marginLeft: 16 }}>
+                    <input
+                      type="checkbox"
+                      checked={checked}
+                      onChange={() => {
+                        const next = checked
+                          ? settings.airportTypes.filter((t) => t !== type)
+                          : [...settings.airportTypes, type];
+                        settings.update({ airportTypes: next });
+                      }}
+                    />
+                    {labels[type]}
+                  </label>
+                );
+              })}
+            </>
+          )}
+
           <label>
             Theme
             <select
