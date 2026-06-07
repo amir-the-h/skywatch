@@ -38,28 +38,18 @@ describe('applyPan', () => {
 
 describe('applyZoom', () => {
   it('zooming in (negative deltaY) increases zoomLevel', () => {
-    const result = applyZoom(1, { dLat: 0, dLon: 0 }, -100);
-    expect(result.zoomLevel).toBeGreaterThan(1);
+    expect(applyZoom(1, -100)).toBeGreaterThan(1);
   });
 
   it('zooming out (positive deltaY) decreases zoomLevel', () => {
-    const result = applyZoom(1, { dLat: 0, dLon: 0 }, 100);
-    expect(result.zoomLevel).toBeLessThan(1);
-  });
-
-  it('never changes panOffset', () => {
-    const offset = { dLat: 1.5, dLon: -2.3 };
-    const result = applyZoom(1, offset, -200);
-    expect(result.panOffset).toBe(offset);
+    expect(applyZoom(1, 100)).toBeLessThan(1);
   });
 
   it('clamps zoomLevel to minimum 0.25', () => {
-    const result = applyZoom(0.26, { dLat: 0, dLon: 0 }, 100000);
-    expect(result.zoomLevel).toBeGreaterThanOrEqual(0.25);
+    expect(applyZoom(0.26, 100000)).toBeGreaterThanOrEqual(0.25);
   });
 
   it('clamps zoomLevel to maximum 20', () => {
-    const result = applyZoom(19.9, { dLat: 0, dLon: 0 }, -100000);
-    expect(result.zoomLevel).toBeLessThanOrEqual(20);
+    expect(applyZoom(19.9, -100000)).toBeLessThanOrEqual(20);
   });
 });
