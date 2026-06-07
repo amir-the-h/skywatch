@@ -42,3 +42,31 @@ export function latLonToCanvas(
     y: canvasHeight / 2 - dyKm * scale,
   };
 }
+
+export function bearingToLatLon(
+  lat: number,
+  lon: number,
+  bearingDeg: number,
+  distanceKm: number
+): { lat: number; lon: number } {
+  const d = distanceKm / R_KM;
+  const bearing = (bearingDeg * Math.PI) / 180;
+  const lat1 = (lat * Math.PI) / 180;
+  const lon1 = (lon * Math.PI) / 180;
+
+  const lat2 = Math.asin(
+    Math.sin(lat1) * Math.cos(d) +
+    Math.cos(lat1) * Math.sin(d) * Math.cos(bearing)
+  );
+  const lon2 =
+    lon1 +
+    Math.atan2(
+      Math.sin(bearing) * Math.sin(d) * Math.cos(lat1),
+      Math.cos(d) - Math.sin(lat1) * Math.sin(lat2)
+    );
+
+  return {
+    lat: (lat2 * 180) / Math.PI,
+    lon: (lon2 * 180) / Math.PI,
+  };
+}
