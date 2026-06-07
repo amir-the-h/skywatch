@@ -8,6 +8,7 @@ interface Props {
 export function SettingsModal({ onClose }: Props) {
   const settings = useSettingsStore();
   const [geoStatus, setGeoStatus] = useState<'idle' | 'loading' | 'error'>('idle');
+  const [ringText, setRingText] = useState(settings.ringIntervals.join(', '));
 
   function handleGeolocate() {
     if (!navigator.geolocation) {
@@ -108,15 +109,20 @@ export function SettingsModal({ onClose }: Props) {
             Radar rings (comma-separated km)
             <input
               type="text"
-              value={settings.ringIntervals.join(', ')}
-              onChange={(e) =>
-                settings.update({
-                  ringIntervals: e.target.value
-                    .split(',')
-                    .map((v) => parseInt(v.trim()))
-                    .filter((v) => !isNaN(v) && v > 0),
-                })
-              }
+              value={ringText}
+              onChange={(e) => setRingText(e.target.value)}
+              onBlur={(e) => {
+                const parsed = e.target.value
+                  .split(',')
+                  .map((v) => parseInt(v.trim()))
+                  .filter((v) => !isNaN(v) && v > 0);
+                if (parsed.length > 0) {
+                  settings.update({ ringIntervals: parsed });
+                  setRingText(parsed.join(', '));
+                } else {
+                  setRingText(settings.ringIntervals.join(', '));
+                }
+              }}
             />
           </label>
         </div>
