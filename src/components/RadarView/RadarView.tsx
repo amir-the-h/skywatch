@@ -99,7 +99,18 @@ export function RadarView() {
           : e.deltaMode === 1
             ? e.deltaY * PIXELS_PER_LINE
             : e.deltaY;
-      zoomLevelRef.current = applyZoom(zoomLevelRef.current, normalizedDeltaY);
+      const oldZoom = zoomLevelRef.current;
+      zoomLevelRef.current = applyZoom(oldZoom, normalizedDeltaY);
+      const f = zoomLevelRef.current / oldZoom;
+      if (f === 1) return;
+      // Keep the point under the cursor fixed as zoom changes
+      const rect = canvas.getBoundingClientRect();
+      const mx = e.clientX - rect.left - canvas.width / 2;
+      const my = e.clientY - rect.top - canvas.height / 2;
+      panOffsetRef.current = {
+        x: (1 - f) * mx + f * panOffsetRef.current.x,
+        y: (1 - f) * my + f * panOffsetRef.current.y,
+      };
     };
 
     canvas.addEventListener('wheel', handleWheel, { passive: false });
