@@ -33,8 +33,10 @@ export function MapView() {
   const aircraftMap = useAircraftStore((s) => s.aircraft);
   const pinnedHexes = useAircraftStore((s) => s.pinnedHexes);
   const hoveredHex = useAircraftStore((s) => s.hoveredHex);
+  const filters = useFilterStore();
 
   const [renderTick, setRenderTick] = useState(0);
+  const [hoverPos, setHoverPos] = useState<{ x: number; y: number } | null>(null);
   useEffect(() => {
     const id = setInterval(() => setRenderTick((t) => t + 1), 100);
     return () => clearInterval(id);
@@ -46,10 +48,7 @@ export function MapView() {
   );
   void renderTick;
 
-  const filters = useFilterStore();
   const visibleAircraft = aircraft.filter((ac) => matchesFilter(ac, filters));
-
-  const [hoverPos, setHoverPos] = useState<{ x: number; y: number } | null>(null);
   const hoveredAircraft = hoveredHex ? aircraftMap.get(hoveredHex) : null;
 
   return (
