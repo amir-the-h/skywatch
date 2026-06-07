@@ -34,6 +34,10 @@ export interface Aircraft {
   nav_modes?: string[];
   ownOp?: string;
   year?: string;
+  orig_iata?: string;
+  dest_iata?: string;
+  orig_name?: string;
+  dest_name?: string;
   seen: number;             // seconds since last message
   // client-side interpolation state
   _renderLat: number;
