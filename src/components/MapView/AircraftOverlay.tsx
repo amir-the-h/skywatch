@@ -14,11 +14,13 @@ const HEADING_KM = 5;
 
 export function AircraftOverlay({ aircraft }: Props) {
   const theme = useSettingsStore((s) => s.theme);
+  const trailLength = useSettingsStore((s) => s.trailLength);
   const pathHistory = useAircraftStore((s) => s.pathHistory);
 
   const color = aircraftColor(aircraft.t, theme);
   const trailColor = lightenHsl(color, 0.2);
-  const history = pathHistory.get(aircraft.hex) ?? [];
+  const fullHistory = pathHistory.get(aircraft.hex) ?? [];
+  const history = trailLength > 0 ? fullHistory.slice(-trailLength) : [];
 
   const hasTrack = aircraft.track != null && !Number.isNaN(aircraft.track);
   const headingEnd = hasTrack
