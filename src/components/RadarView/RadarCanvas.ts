@@ -281,8 +281,15 @@ const LABEL_H = 52;
 const LABEL_OFFSET = 40;
 
 function drawAircraftLabels(params: RadarDrawParams, renderData: Map<string, AircraftRenderData>) {
-  const { ctx, width, height, aircraft, theme, labelConditions, pinnedHexes } = params;
+  const { ctx, width, height, aircraft, theme, labelConditions, pinnedHexes, zoomLevel } = params;
   const textColor = theme === 'dark' ? '#e5e7eb' : '#1f2937';
+  const s = iconScaleForZoom(zoomLevel);
+
+  const labelW = LABEL_W * s;
+  const labelH = LABEL_H * s;
+  const labelOffset = LABEL_OFFSET * s;
+  const pad = 7 * s;
+  const r = 5 * s;
 
   for (const ac of aircraft) {
     const rd = renderData.get(ac.hex);
@@ -293,19 +300,18 @@ function drawAircraftLabels(params: RadarDrawParams, renderData: Map<string, Air
     const phase = inferFlightPhase(ac);
     const phaseColor = getPhaseColor(phase);
 
-    // Determine label quadrant — prefer upper-right, avoid edges
-    let dx = LABEL_OFFSET;
-    let dy = -LABEL_OFFSET;
-    if (pos.x > width - LABEL_W - 20) dx = -(LABEL_W + LABEL_OFFSET);
-    if (pos.y < LABEL_H + 20) dy = LABEL_OFFSET;
+    let dx = labelOffset;
+    let dy = -labelOffset;
+    if (pos.x > width - labelW - 20) dx = -(labelW + labelOffset);
+    if (pos.y < labelH + 20) dy = labelOffset;
 
     const lx = pos.x + dx;
     const ly = pos.y + dy;
 
-    // Connector line: aircraft center → nearest corner of label box
-    const connX = dx > 0 ? lx : lx + LABEL_W;
-    const connY = dy > 0 ? ly : ly + LABEL_H;
+    const connX = dx > 0 ? lx : lx + labelW;
+    const connY = dy > 0 ? ly : ly + labelH;
 
+    // Connector line
     ctx.save();
     ctx.setLineDash([3, 3]);
     ctx.strokeStyle = color;
@@ -324,7 +330,7 @@ function drawAircraftLabels(params: RadarDrawParams, renderData: Map<string, Air
     ctx.globalAlpha = 1;
     ctx.fillStyle = theme === 'dark' ? 'rgba(10, 11, 15, 0.82)' : 'rgba(240, 242, 248, 0.92)';
     ctx.beginPath();
-    ctx.roundRect(lx, ly, LABEL_W, LABEL_H, 5);
+    ctx.roundRect(lx, ly, labelW, labelH, r);
     ctx.fill();
     ctx.strokeStyle = color;
     ctx.lineWidth = 1.2;
@@ -332,45 +338,46 @@ function drawAircraftLabels(params: RadarDrawParams, renderData: Map<string, Air
 
     // Callsign
     ctx.fillStyle = color;
-    ctx.font = 'bold 9.5px monospace';
+    ctx.font = `bold ${9.5 * s}px monospace`;
     ctx.textAlign = 'left';
     ctx.textBaseline = 'top';
-    ctx.fillText(callsign, lx + 7, ly + 7);
+    ctx.fillText(callsign, lx + pad, ly + pad);
 
-    // Altitude + trend arrow
+    // Altitude
     const altText = `${ac.alt_baro.toLocaleString()} ft`;
     ctx.fillStyle = textColor;
-    ctx.font = '8.5px monospace';
-    ctx.fillText(altText, lx + 7, ly + 22);
+    ctx.font = `${8.5 * s}px monospace`;
+    ctx.fillText(altText, lx + pad, ly + pad + 15 * s);
 
+    // Trend arrow
     const trendArrow = ac.baro_rate > 100 ? '▲' : ac.baro_rate < -100 ? '▼' : '—';
     const trendColor = ac.baro_rate > 100 ? '#4ade80' : ac.baro_rate < -100 ? '#f87171' : '#9ca3af';
     const altWidth = ctx.measureText(altText).width;
     ctx.fillStyle = trendColor;
-    ctx.font = 'bold 10px monospace';
-    ctx.fillText(trendArrow, lx + 7 + altWidth + 3, ly + 21);
+    ctx.font = `bold ${10 * s}px monospace`;
+    ctx.fillText(trendArrow, lx + pad + altWidth + 3 * s, ly + pad + 14 * s);
 
     // Speed
     ctx.fillStyle = '#9ca3af';
-    ctx.font = '8px monospace';
-    ctx.fillText(`${Math.round(ac.gs)} kts`, lx + 7, ly + 36);
+    ctx.font = `${8 * s}px monospace`;
+    ctx.fillText(`${Math.round(ac.gs)} kts`, lx + pad, ly + pad + 29 * s);
 
     // Phase badge
-    const BADGE_W = 28;
-    const BADGE_H = 12;
-    const badgeX = lx + LABEL_W - BADGE_W - 5;
-    const badgeY = ly + LABEL_H - BADGE_H - 4;
+    const BADGE_W = 28 * s;
+    const BADGE_H = 12 * s;
+    const badgeX = lx + labelW - BADGE_W - 5 * s;
+    const badgeY = ly + labelH - BADGE_H - 4 * s;
 
     ctx.fillStyle = phaseColor + '33';
     ctx.strokeStyle = phaseColor + '80';
     ctx.lineWidth = 0.8;
     ctx.beginPath();
-    ctx.roundRect(badgeX, badgeY, BADGE_W, BADGE_H, 3);
+    ctx.roundRect(badgeX, badgeY, BADGE_W, BADGE_H, 3 * s);
     ctx.fill();
     ctx.stroke();
 
     ctx.fillStyle = phaseColor;
-    ctx.font = '7px monospace';
+    ctx.font = `${7 * s}px monospace`;
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
     ctx.fillText(phase, badgeX + BADGE_W / 2, badgeY + BADGE_H / 2);
