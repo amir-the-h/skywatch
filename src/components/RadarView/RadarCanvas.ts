@@ -25,7 +25,6 @@ export interface RadarDrawParams {
   hoveredHex: string | null;
   pinnedHexes: Set<string>;
   theme: 'dark' | 'light';
-  pathHistory: Map<string, { lat: number; lon: number }[]>;
   panOffset: { x: number; y: number };
   trailLength: number;
   labelConditions: LabelCondition[];
@@ -178,7 +177,7 @@ function drawAirports(params: RadarDrawParams) {
 const AIRCRAFT_SIZE = 28;
 
 function drawAllAircraft(params: RadarDrawParams): Map<string, AircraftRenderData> {
-  const { ctx, width, height, centerLat, centerLon, radiusKm, aircraft, hoveredHex, pinnedHexes, theme, pathHistory, trailLength, panOffset, zoomLevel } = params;
+  const { ctx, width, height, centerLat, centerLon, radiusKm, aircraft, hoveredHex, pinnedHexes, theme, trailLength, panOffset, zoomLevel } = params;
 
   const renderData = new Map<string, AircraftRenderData>();
   const iconScale = iconScaleForZoom(zoomLevel);
@@ -200,7 +199,7 @@ function drawAllAircraft(params: RadarDrawParams): Map<string, AircraftRenderDat
     const isEmergency = (!!ac.emergency && ac.emergency !== 'none') || ac.squawk === '7700' || ac.squawk === '7600' || ac.squawk === '7500';
 
     // Trail
-    const fullHistory = pathHistory.get(ac.hex);
+    const fullHistory = ac.pathHistory;
     const history = fullHistory && trailLength > 0 ? fullHistory.slice(-trailLength) : [];
     if (history.length >= 2) {
       ctx.save();
