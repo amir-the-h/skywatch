@@ -129,9 +129,9 @@ function drawAllAircraft(params: RadarDrawParams) {
       ctx.beginPath();
       let first = true;
       for (const { lat, lon } of history) {
-        const p = latLonToCanvas(lat, lon, centerLat, centerLon, radiusKm, width, height);
-        if (first) { ctx.moveTo(p.x, p.y); first = false; }
-        else ctx.lineTo(p.x, p.y);
+        const trailPos = latLonToCanvas(lat, lon, centerLat, centerLon, radiusKm, width, height);
+        if (first) { ctx.moveTo(trailPos.x, trailPos.y); first = false; }
+        else ctx.lineTo(trailPos.x, trailPos.y);
       }
       ctx.stroke();
       ctx.restore();
