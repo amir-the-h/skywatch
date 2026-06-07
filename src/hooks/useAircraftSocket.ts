@@ -6,7 +6,7 @@ import { useSettingsStore } from './useSettings';
 
 export function useAircraftSocket(): void {
   const socketRef = useRef<Socket | null>(null);
-  const { mergeAircraft } = useAircraftStore();
+  const { mergeAircraft, removeStale } = useAircraftStore();
   const { lat, lng, radiusKm } = useSettingsStore();
 
   // Connect on mount, set up listener, cleanup on unmount
@@ -22,12 +22,13 @@ export function useAircraftSocket(): void {
 
     socket.on('aircraft_update', (data: { aircraft: BackendAircraft[] }) => {
       mergeAircraft(data.aircraft);
+      removeStale(new Set(data.aircraft.map((ac) => ac.hex)));
     });
 
     return () => {
       socket.disconnect();
     };
-  }, [mergeAircraft]);
+  }, [mergeAircraft, removeStale]);
 
   // Register location on connect and when settings change
   useEffect(() => {
