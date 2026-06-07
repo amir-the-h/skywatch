@@ -2,7 +2,6 @@
 import { create } from 'zustand';
 import type { Aircraft } from '../types/aircraft';
 import type { BackendAircraft } from '../../shared/types';
-import { interpolatePosition } from '../lib/interpolate';
 
 interface AircraftStore {
   aircraft: Map<string, Aircraft>;
@@ -28,16 +27,10 @@ export const useAircraftStore = create<AircraftStore>((set) => ({
       const next = new Map(state.aircraft);
       const now = Date.now();
       for (const ac of incoming) {
-        const prev = next.get(ac.hex);
-        // Advance the stored render position to where interpolation left off,
-        // so the next RAF interval continues from the current visual location
-        // instead of snapping back to the initial position.
-        const advanced = prev ? interpolatePosition(prev, now) : null;
         next.set(ac.hex, {
           ...ac,
-          pathHistory: ac.pathHistory,
-          _renderLat: advanced ? advanced._renderLat : ac.lat,
-          _renderLon: advanced ? advanced._renderLon : ac.lon,
+          _renderLat: ac.lat,
+          _renderLon: ac.lon,
           _lastSeen: now,
         });
       }
