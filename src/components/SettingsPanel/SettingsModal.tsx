@@ -94,18 +94,6 @@ export function SettingsModal({ onClose }: Props) {
             />
           </label>
 
-          <label>
-            Refresh interval (seconds)
-            <input
-              type="range"
-              min={1}
-              max={30}
-              value={settings.refreshInterval}
-              onChange={(e) => settings.update({ refreshInterval: parseInt(e.target.value) })}
-            />
-            <span>{settings.refreshInterval}s</span>
-          </label>
-
           <div className="modal-section-title">Display</div>
 
           <label>
@@ -120,7 +108,7 @@ export function SettingsModal({ onClose }: Props) {
             <span>
               {settings.trailLength === 0
                 ? 'Hidden'
-                : `${settings.trailLength} pts · ≈${Math.round(settings.trailLength * settings.refreshInterval / 60)} min`}
+                : `${settings.trailLength} pts`}
             </span>
           </label>
 
