@@ -20,7 +20,7 @@ services:
     build:
       context: .
       args:
-        VITE_BACKEND_URL: https://skywatch.the-h.me
+        VITE_BACKEND_URL: https://skywatch.test
     restart: unless-stopped
     depends_on:
       - backend
