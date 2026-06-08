@@ -4,23 +4,13 @@ import type { BackendAircraft } from '../../shared/types';
 import { inferFlightPhase } from './AircraftProcessor';
 import { RedisStore } from './RedisStore';
 
-const DEFAULT_SOURCES = [
-  'https://api.airplanes.live/v2/point',
-  'https://api.adsb.lol/v2/point',
-];
-
-// ADS_SOURCES: comma-separated list of ADS-B V2-compatible base URLs.
-// Example: ADS_SOURCES=https://api.airplanes.live/v2/point,https://api.adsb.lol/v2/point
-const SOURCES: string[] = process.env.ADS_SOURCES
-  ? process.env.ADS_SOURCES.split(',').map((s) => s.trim()).filter(Boolean)
-  : DEFAULT_SOURCES;
+const SOURCE = process.env.ADS_SOURCE ?? 'https://api.airplanes.live/v2/point';
 
 // Log a summary line every N polls per cell (default 30 ≈ every 30s at 1s poll interval).
 const LOG_POLL_INTERVAL = parseInt(process.env.LOG_POLL_INTERVAL ?? '30');
 const pollCounters = new Map<string, number>();
 
-console.log(`[sources] ${SOURCES.length} ADS-B source(s) configured:`);
-SOURCES.forEach((s, i) => console.log(`  [${i + 1}] ${s}`));
+console.log(`[source] ADS-B source: ${SOURCE}`);
 
 const KM_TO_NM = 0.539957;
 
@@ -83,39 +73,16 @@ export async function pollCell(
 ): Promise<void> {
   const radiusNm = Math.round(maxRadiusKm * KM_TO_NM);
 
-  const results = await Promise.allSettled(
-    SOURCES.map((base) =>
-      fetch(`${base}/${gLat}/${gLon}/${radiusNm}`)
-        .then((res) => (res.ok ? (res.json() as Promise<{ ac?: unknown[] }>) : Promise.resolve({ ac: [] })))
-        .then((data) => data.ac ?? [])
-        .catch(() => [] as unknown[])
-    )
-  );
+  const rawAc: unknown[] = await fetch(`${SOURCE}/${gLat}/${gLon}/${radiusNm}`)
+    .then((res) => (res.ok ? (res.json() as Promise<{ ac?: unknown[] }>) : Promise.resolve({ ac: [] })))
+    .then((data) => data.ac ?? [])
+    .catch(() => []);
 
-  // Merge all sources; for duplicate hex codes keep the fresher record (lower `seen` = more recent).
-  const merged = new Map<string, unknown>();
-  const sourceCounts: number[] = [];
-  for (const result of results) {
-    if (result.status !== 'fulfilled') { sourceCounts.push(0); continue; }
-    sourceCounts.push(result.value.length);
-    for (const raw of result.value) {
-      const r = raw as Record<string, unknown>;
-      const hex = r.hex as string;
-      if (!hex) continue;
-      const existing = merged.get(hex) as Record<string, unknown> | undefined;
-      if (!existing || (r.seen as number ?? Infinity) < (existing.seen as number ?? Infinity)) {
-        merged.set(hex, raw);
-      }
-    }
-  }
-
-  const rawAc = [...merged.values()];
   const ck = `${gLat}:${gLon}`;
   const count = (pollCounters.get(ck) ?? 0) + 1;
   pollCounters.set(ck, count);
   if (count % LOG_POLL_INTERVAL === 1) {
-    const srcSummary = sourceCounts.join('+');
-    console.log(`[poll] cell ${ck} | sources: ${srcSummary} raw → ${rawAc.length} merged | sockets: ${sockets.size}`);
+    console.log(`[poll] cell ${ck} | raw: ${rawAc.length} | sockets: ${sockets.size}`);
   }
 
   const aircraft: BackendAircraft[] = [];
