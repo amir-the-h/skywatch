@@ -12,9 +12,10 @@ import { applyZoom } from './viewTransform';
 import { useFilterStore } from '../../store/filterStore';
 import { matchesFilter } from '../../lib/aircraftFilter';
 import { useAirports } from '../../hooks/useAirports';
+import { useMetar } from '../../hooks/useMetar';
 import { findClosestAirport } from '../../lib/geoUtils';
 import { AirportPreview } from './AirportPreview';
-import type { Airport } from '../../../../shared/types';
+import type { Airport, MetarData } from '../../../../shared/types';
 
 export function RadarView() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -64,6 +65,10 @@ export function RadarView() {
   const airports = useAirports();
   const airportsRef = useRef<Airport[]>([]);
   useEffect(() => { airportsRef.current = airports; }, [airports]);
+
+  const metar = useMetar();
+  const metarRef = useRef<Map<string, MetarData>>(new Map());
+  useEffect(() => { metarRef.current = metar; }, [metar]);
 
   const [hoveredAirport, setHoveredAirport] = useState<Airport | null>(null);
   const [zoomScale, setZoomScale] = useState(1);
@@ -115,6 +120,7 @@ export function RadarView() {
         labelConditions: labelConditionsRef.current,
         airports: airportsRef.current,
         zoomLevel: zoomLevelRef.current,
+        metar: metarRef.current,
       });
       rafRef.current = requestAnimationFrame(loop);
     };
@@ -392,7 +398,7 @@ export function RadarView() {
       )}
 
       {hoveredAirport && hoverPos && (
-        <AirportPreview airport={hoveredAirport} x={hoverPos.x} y={hoverPos.y} />
+        <AirportPreview airport={hoveredAirport} x={hoverPos.x} y={hoverPos.y} metar={metar.get(hoveredAirport.icao)} />
       )}
 
       <div className="bubbles-container">
