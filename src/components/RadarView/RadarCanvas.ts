@@ -333,8 +333,15 @@ export function computeLabelPositions(
   const labelW = LABEL_W * s;
   const labelH = LABEL_H * s;
 
+  // Visible bounds in local (translated) coordinate space
+  const minX = -panOffset.x;
+  const maxX = width - panOffset.x - labelW;
+  const minY = -panOffset.y;
+  const maxY = height - panOffset.y - labelH;
+
   // Detect sharp pan/zoom jump — skip lerp this frame to avoid labels sliding across screen
   const panDelta = Math.hypot(panOffset.x - prevPan.x, panOffset.y - prevPan.y);
+  // ×100 scales zoom ratio to pixel-comparable units for LABEL_RESET_THRESHOLD
   const zoomDelta = Math.abs(zoomLevel - prevZoom) * 100;
   const skipLerp = panDelta > LABEL_RESET_THRESHOLD || zoomDelta > LABEL_RESET_THRESHOLD;
   prevPan = { ...panOffset };
@@ -373,8 +380,8 @@ export function computeLabelPositions(
     if (visible.length === 1) {
       // Fast path: single aircraft — skip scoring, go straight to preferred slot
       const angle = -Math.PI / 4;
-      const lx = Math.max(0, Math.min(pos.x + Math.cos(angle) * LABEL_OFFSET_NEAR * s - labelW / 2, width - labelW));
-      const ly = Math.max(0, Math.min(pos.y + Math.sin(angle) * LABEL_OFFSET_NEAR * s - labelH / 2, height - labelH));
+      const lx = Math.max(minX, Math.min(pos.x + Math.cos(angle) * LABEL_OFFSET_NEAR * s - labelW / 2, maxX));
+      const ly = Math.max(minY, Math.min(pos.y + Math.sin(angle) * LABEL_OFFSET_NEAR * s - labelH / 2, maxY));
       committed.push({ lx, ly, hex: ac.hex });
       continue;
     }
@@ -396,10 +403,10 @@ export function computeLabelPositions(
 
         // Penalty: pixels outside canvas bounds (weight heavily to keep labels on screen)
         const edgeClip =
-          Math.max(0, -lx) +
-          Math.max(0, lx + labelW - width) +
-          Math.max(0, -ly) +
-          Math.max(0, ly + labelH - height);
+          Math.max(0, minX - lx) +
+          Math.max(0, lx - maxX) +
+          Math.max(0, minY - ly) +
+          Math.max(0, ly - maxY);
 
         // Penalty: angular distance from preferred angle (315° / upper-right)
         const preferredAngle = -Math.PI / 4;
@@ -416,8 +423,8 @@ export function computeLabelPositions(
       }
     }
 
-      const clampedLx = Math.max(0, Math.min(bestLx, width - labelW));
-    const clampedLy = Math.max(0, Math.min(bestLy, height - labelH));
+    const clampedLx = Math.max(minX, Math.min(bestLx, maxX));
+    const clampedLy = Math.max(minY, Math.min(bestLy, maxY));
     committed.push({ lx: clampedLx, ly: clampedLy, hex: ac.hex });
   }
 
@@ -445,10 +452,10 @@ export function computeLabelPositions(
         else { a.ly += push; b.ly -= push; }
       }
       // Clamp both to canvas bounds
-      a.lx = Math.max(0, Math.min(a.lx, width - labelW));
-      a.ly = Math.max(0, Math.min(a.ly, height - labelH));
-      b.lx = Math.max(0, Math.min(b.lx, width - labelW));
-      b.ly = Math.max(0, Math.min(b.ly, height - labelH));
+      a.lx = Math.max(minX, Math.min(a.lx, maxX));
+      a.ly = Math.max(minY, Math.min(a.ly, maxY));
+      b.lx = Math.max(minX, Math.min(b.lx, maxX));
+      b.ly = Math.max(minY, Math.min(b.ly, maxY));
     }
   }
 
