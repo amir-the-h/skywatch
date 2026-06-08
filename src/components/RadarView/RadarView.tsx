@@ -348,6 +348,7 @@ export function RadarView() {
           }
         }}
         onTouchEnd={(e) => {
+          e.preventDefault(); // prevent synthesized mouseup/click from double-firing pin/unpin
           if (e.touches.length === 0) {
             // All fingers lifted — check for tap
             if (isDraggingRef.current && touchStartRef.current && !hadPinchRef.current) {
