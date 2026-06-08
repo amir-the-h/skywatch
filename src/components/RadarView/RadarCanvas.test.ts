@@ -126,17 +126,15 @@ describe('computeLabelPositions', () => {
     });
   });
 
-  describe('gives at least two labels reduced opacity when 5 aircraft share the same spot', () => {
-    it('gives at least two labels reduced opacity when 5 aircraft share the same spot', () => {
-      const aircraft = ['a', 'b', 'c', 'd', 'e'].map(h => ac(h));
-      const renderData = makeRenderData(
-        ['a', 400, 300], ['b', 400, 300], ['c', 400, 300],
-        ['d', 400, 300], ['e', 400, 300],
-      );
-      const result = computeLabelPositions({ ...BASE, aircraft }, renderData, 1);
-      const opacities = [...result.values()].map(p => p.opacity);
-      expect(opacities.filter(o => o < 1).length).toBeGreaterThanOrEqual(2);
-    });
+  it('gives at least two labels reduced opacity when 5 aircraft share the same spot', () => {
+    const aircraft = ['a', 'b', 'c', 'd', 'e'].map(h => ac(h));
+    const renderData = makeRenderData(
+      ['a', 400, 300], ['b', 400, 300], ['c', 400, 300],
+      ['d', 400, 300], ['e', 400, 300],
+    );
+    const result = computeLabelPositions({ ...BASE, aircraft }, renderData, 1);
+    const opacities = [...result.values()].map(p => p.opacity);
+    expect(opacities.filter(o => o < 1).length).toBeGreaterThanOrEqual(2);
   });
 
   describe('omits aircraft with no render data', () => {

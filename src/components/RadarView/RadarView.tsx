@@ -68,6 +68,7 @@ export function RadarView() {
   const [isTransformed, setIsTransformed] = useState(false);
 
   const resetView = useCallback(() => {
+    resetLabelState();
     zoomLevelRef.current = 1;
     panOffsetRef.current = { x: 0, y: 0 };
     setZoomScale(1);
