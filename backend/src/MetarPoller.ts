@@ -71,13 +71,30 @@ export class MetarPoller {
   }
 
   async pollNow(): Promise<void> {
-    const icaos = this.allWantedIcaos();
-    if (icaos.length === 0) return;
+    const allIcaos = this.allWantedIcaos();
+    const icaos = allIcaos.filter((id) => /^[A-Z0-9]{4}$/.test(id));
+    const skipped = allIcaos.length - icaos.length;
+    if (skipped > 0) console.log(`[metar] Skipping ${skipped} non-standard ICAOs (e.g. ${allIcaos.filter((id) => !/^[A-Z0-9]{4}$/.test(id)).slice(0, 3).join(', ')})`);
+    if (icaos.length === 0) { console.log('[metar] No valid ICAOs to poll'); return; }
 
     const url = `${METAR_URL}?ids=${icaos.join(',')}&format=json`;
-    const entries: unknown[] = await fetch(url)
-      .then((res) => (res.ok ? (res.json() as Promise<unknown[]>) : Promise.resolve([])))
-      .catch(() => []);
+    console.log(`[metar] Fetching ${icaos.length} ICAOs: ${icaos.join(',')}`);
+
+    let entries: unknown[] = [];
+    try {
+      const res = await fetch(url);
+      console.log(`[metar] Response status: ${res.status}`);
+      if (res.ok) {
+        const body = await res.json();
+        entries = Array.isArray(body) ? body : [];
+        if (!Array.isArray(body)) console.log(`[metar] Unexpected response shape: ${JSON.stringify(body).slice(0, 200)}`);
+      } else {
+        const text = await res.text();
+        console.log(`[metar] Non-OK response: ${text.slice(0, 200)}`);
+      }
+    } catch (err) {
+      console.log(`[metar] Fetch error: ${err}`);
+    }
 
     for (const entry of entries) {
       const parsed = parseMetarEntry(entry);
@@ -89,6 +106,6 @@ export class MetarPoller {
       this.io.to(socketId).emit('metar_update', metar);
     }
 
-    console.log(`[metar] Polled ${icaos.length} airports, ${entries.length} METARs received`);
+    console.log(`[metar] Done: ${entries.length} METARs received, ${Object.keys(entries).length ? entries.length : 0} stored`);
   }
 }
