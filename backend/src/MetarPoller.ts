@@ -7,7 +7,7 @@ const METAR_URL = 'https://aviationweather.gov/api/data/metar';
 interface RawMetarEntry {
   icaoId: string;
   rawOb: string;
-  wdir: number | null;
+  wdir: number | 'VRB' | null;
   wspd: number;
   wgst: number | null;
   obsTime: string;
@@ -19,7 +19,7 @@ function parseMetarEntry(entry: unknown): { icao: string; data: MetarData } | nu
   return {
     icao: e.icaoId,
     data: {
-      windDir: e.wdir ?? null,
+      windDir: typeof e.wdir === 'number' ? e.wdir : null,
       windSpeed: e.wspd ?? 0,
       windGust: e.wgst ?? null,
       raw: e.rawOb ?? '',
