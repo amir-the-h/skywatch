@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react';
 import { useSettingsStore } from './hooks/useSettings';
 import { useAircraftSocket } from './hooks/useAircraftSocket';
 import { useVersionPoller } from './hooks/useVersionPoller';
+import { useIdleCursor } from './hooks/useIdleCursor';
 import { useAircraftStore } from './store/aircraftStore';
 import { MapView } from './components/MapView/MapView';
 import { RadarView } from './components/RadarView/RadarView';
@@ -40,6 +41,7 @@ export default function App() {
 
   useAircraftSocket();
   useVersionPoller();
+  useIdleCursor();
 
   return (
     <>
