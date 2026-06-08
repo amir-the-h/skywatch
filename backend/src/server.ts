@@ -8,6 +8,7 @@ import { snapToGrid, cellKey } from './GridEngine';
 import { pollCell } from './CellPoller';
 import { loadAirports } from './AirportLoader';
 import { MetarPoller } from './MetarPoller';
+import { fetchCenterWeather } from './CenterWeatherFetcher';
 
 const PORT = parseInt(process.env.PORT ?? '3001');
 const REDIS_URL = process.env.REDIS_URL ?? 'redis://localhost:6379';
@@ -71,10 +72,13 @@ async function registerSocket(
   // Send airports + current METAR to this socket
   const airports = await store.airportsInRadius(userLat, userLon, radiusKm);
   const icaos = airports.map((a) => a.icao);
-  const metar = await metarPoller.getMetarFor(icaos);
-  io.to(socketId).emit('airports', { airports, metar });
-  metarPoller.addSocket(socketId, icaos);
-  if (icaos.length > 0) void metarPoller.pollNow();
+  const [metar, centerWeather] = await Promise.all([
+    metarPoller.getMetarFor(icaos),
+    fetchCenterWeather(userLat, userLon),
+  ]);
+  io.to(socketId).emit('airports', { airports, metar, centerWeather });
+  metarPoller.addSocket(socketId, icaos, userLat, userLon);
+  void metarPoller.pollNow();
 }
 
 async function unregisterSocket(socketId: string): Promise<void> {
@@ -119,12 +123,14 @@ io.on('connection', (socket) => {
             const maxRadiusKm = Math.max(...[...cell.sockets.values()].map((s) => s.radiusKm));
             await store.saveCellMeta(existing.gLat, existing.gLon, maxRadiusKm);
 
-            // Re-emit airports for updated radius
             const airports = await store.airportsInRadius(lat, lon, radiusKm);
             const icaos = airports.map((a) => a.icao);
-            const metar = await metarPoller.getMetarFor(icaos);
-            socket.emit('airports', { airports, metar });
-            metarPoller.addSocket(socket.id, icaos);
+            const [metar, centerWeather] = await Promise.all([
+              metarPoller.getMetarFor(icaos),
+              fetchCenterWeather(lat, lon),
+            ]);
+            socket.emit('airports', { airports, metar, centerWeather });
+            metarPoller.addSocket(socket.id, icaos, lat, lon);
           }
           return;
         }

@@ -63,9 +63,19 @@ export interface MetarData {
   observedAt: string;        // ISO 8601 timestamp
 }
 
+export interface PointWeather {
+  windDir: number | null;   // degrees; null = variable/calm
+  windSpeed: number;        // knots
+  windGust: number | null;  // knots; null = none
+  observedAt: string;       // ISO timestamp
+}
+
 export interface AirportsPayload {
   airports: Airport[];
   metar: Record<string, MetarData>;
+  centerWeather: PointWeather | null;
 }
 
 export type MetarUpdatePayload = Record<string, MetarData>
+
+export type CenterWeatherPayload = PointWeather | null

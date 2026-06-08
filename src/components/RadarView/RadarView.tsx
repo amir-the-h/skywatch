@@ -15,7 +15,9 @@ import { useAirports } from '../../hooks/useAirports';
 import { useMetar } from '../../hooks/useMetar';
 import { findClosestAirport } from '../../lib/geoUtils';
 import { AirportPreview } from './AirportPreview';
-import type { Airport, MetarData } from '../../../../shared/types';
+import { useCenterWeatherStore } from '../../store/centerWeatherStore';
+import { CenterWeatherPreview } from './CenterWeatherPreview';
+import type { Airport, MetarData, PointWeather } from '../../../../shared/types';
 
 export function RadarView() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -70,7 +72,12 @@ export function RadarView() {
   const metarRef = useRef<Map<string, MetarData>>(new Map());
   useEffect(() => { metarRef.current = metar; }, [metar]);
 
+  const centerWeather = useCenterWeatherStore((s) => s.centerWeather);
+  const centerWeatherRef = useRef<PointWeather | null>(null);
+  useEffect(() => { centerWeatherRef.current = centerWeather; }, [centerWeather]);
+
   const [hoveredAirport, setHoveredAirport] = useState<Airport | null>(null);
+  const [hoveredCenter, setHoveredCenter] = useState(false);
   const [zoomScale, setZoomScale] = useState(1);
   const [isTransformed, setIsTransformed] = useState(false);
 
@@ -121,6 +128,7 @@ export function RadarView() {
         airports: airportsRef.current,
         zoomLevel: zoomLevelRef.current,
         metar: metarRef.current,
+        centerWeather: centerWeatherRef.current,
       });
       rafRef.current = requestAnimationFrame(loop);
     };
@@ -256,9 +264,22 @@ export function RadarView() {
           const hex = hitTest(e.clientX, e.clientY);
           setHovered(hex);
           if (!hex) {
-            setHoveredAirport(hitTestAirport(e.clientX, e.clientY));
+            const ap = hitTestAirport(e.clientX, e.clientY);
+            setHoveredAirport(ap);
+            if (!ap && centerWeatherRef.current) {
+              const canvas = canvasRef.current;
+              if (canvas) {
+                const rect = canvas.getBoundingClientRect();
+                const cx = canvas.width / 2 + panOffsetRef.current.x + rect.left;
+                const cy = canvas.height / 2 + panOffsetRef.current.y + rect.top;
+                setHoveredCenter(Math.hypot(e.clientX - cx, e.clientY - cy) < 18);
+              }
+            } else {
+              setHoveredCenter(false);
+            }
           } else {
             setHoveredAirport(null);
+            setHoveredCenter(false);
           }
         }}
         onMouseUp={(e) => {
@@ -298,6 +319,7 @@ export function RadarView() {
           setHovered(null);
           setHoverPos(null);
           setHoveredAirport(null);
+          setHoveredCenter(false);
         }}
         onDoubleClick={() => {
           if (pinTimeoutRef.current) {
@@ -399,6 +421,10 @@ export function RadarView() {
 
       {hoveredAirport && hoverPos && (
         <AirportPreview airport={hoveredAirport} x={hoverPos.x} y={hoverPos.y} metar={metar.get(hoveredAirport.icao)} />
+      )}
+
+      {hoveredCenter && hoverPos && centerWeather && (
+        <CenterWeatherPreview weather={centerWeather} x={hoverPos.x} y={hoverPos.y} />
       )}
 
       <div className="bubbles-container">

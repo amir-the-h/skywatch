@@ -1,6 +1,7 @@
 import type { Server } from 'socket.io';
 import type { MetarData } from '../../shared/types';
 import type { RedisStore } from './RedisStore';
+import { fetchCenterWeather } from './CenterWeatherFetcher';
 
 const METAR_URL = 'https://aviationweather.gov/api/data/metar';
 
@@ -30,6 +31,7 @@ function parseMetarEntry(entry: unknown): { icao: string; data: MetarData } | nu
 
 export class MetarPoller {
   private socketIcaos = new Map<string, Set<string>>();
+  private socketCenter = new Map<string, { lat: number; lon: number }>();
   private intervalId: ReturnType<typeof setInterval> | null = null;
 
   constructor(
@@ -50,12 +52,14 @@ export class MetarPoller {
     }
   }
 
-  addSocket(socketId: string, icaos: string[]): void {
+  addSocket(socketId: string, icaos: string[], lat: number, lon: number): void {
     this.socketIcaos.set(socketId, new Set(icaos));
+    this.socketCenter.set(socketId, { lat, lon });
   }
 
   removeSocket(socketId: string): void {
     this.socketIcaos.delete(socketId);
+    this.socketCenter.delete(socketId);
   }
 
   allWantedIcaos(): string[] {
@@ -104,6 +108,12 @@ export class MetarPoller {
     for (const [socketId, socketIcaoSet] of this.socketIcaos) {
       const metar = await this.store.getManyMetar([...socketIcaoSet]);
       this.io.to(socketId).emit('metar_update', metar);
+
+      const center = this.socketCenter.get(socketId);
+      if (center) {
+        const cw = await fetchCenterWeather(center.lat, center.lon);
+        this.io.to(socketId).emit('center_weather', cw);
+      }
     }
 
     console.log(`[metar] Done: ${entries.length} METARs received, ${Object.keys(entries).length ? entries.length : 0} stored`);
