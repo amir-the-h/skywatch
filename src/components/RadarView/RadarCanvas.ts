@@ -181,6 +181,18 @@ function drawAirports(params: RadarDrawParams) {
       ctx.fill();
       ctx.stroke();
       ctx.restore();
+
+      // Runway ident labels at each threshold end
+      const ux = dx / lenPx;
+      const uy = dy / lenPx;
+      ctx.save();
+      ctx.font = '7px monospace';
+      ctx.fillStyle = `rgba(${base}, 0.6)`;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(runway.le.ident, le.x - ux * 10, le.y - uy * 10);
+      ctx.fillText(runway.he.ident, he.x + ux * 10, he.y + uy * 10);
+      ctx.restore();
     }
 
     if (maxLenPx >= 12) {
