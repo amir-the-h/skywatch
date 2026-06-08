@@ -9,7 +9,7 @@ interface AircraftStore {
   hoveredHex: string | null;
   lastUpdated: number | null;
 
-  mergeAircraft: (incoming: BackendAircraft[]) => void;
+  mergeAircraft: (incoming: BackendAircraft[], fetchedAt?: number) => void;
   removeStale: (hexes: Set<string>) => void;
   pin: (hex: string) => void;
   unpin: (hex: string) => void;
@@ -22,7 +22,7 @@ export const useAircraftStore = create<AircraftStore>((set) => ({
   hoveredHex: null,
   lastUpdated: null,
 
-  mergeAircraft: (incoming) =>
+  mergeAircraft: (incoming, fetchedAt = Date.now()) =>
     set((state) => {
       const next = new Map(state.aircraft);
       const now = Date.now();
@@ -31,7 +31,7 @@ export const useAircraftStore = create<AircraftStore>((set) => ({
           ...ac,
           _renderLat: ac.lat,
           _renderLon: ac.lon,
-          _lastSeen: now,
+          _lastSeen: fetchedAt - ac.seen * 1000,
         });
       }
       return { aircraft: next, lastUpdated: now };

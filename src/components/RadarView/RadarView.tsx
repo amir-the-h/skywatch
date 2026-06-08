@@ -29,8 +29,10 @@ export function RadarView() {
 
   const hoveredHexRef = useRef(hoveredHex);
   const pinnedHexesRef = useRef(pinnedHexes);
+  const aircraftMapRef = useRef(aircraftMap);
   useEffect(() => { hoveredHexRef.current = hoveredHex; }, [hoveredHex]);
   useEffect(() => { pinnedHexesRef.current = pinnedHexes; }, [pinnedHexes]);
+  useEffect(() => { aircraftMapRef.current = aircraftMap; }, [aircraftMap]);
 
   const zoomLevelRef = useRef(1);
   const panOffsetRef = useRef({ x: 0, y: 0 });
@@ -92,7 +94,7 @@ export function RadarView() {
 
     const loop = () => {
       const now = Date.now();
-      const allAircraft = Array.from(aircraftMap.values()).map((ac) =>
+      const allAircraft = Array.from(aircraftMapRef.current.values()).map((ac) =>
         interpolatePosition(ac, now)
       );
       const aircraft = allAircraft.filter((ac) => matchesFilter(ac, filtersRef.current));
@@ -122,7 +124,7 @@ export function RadarView() {
       cancelAnimationFrame(rafRef.current);
       resetLabelState();
     };
-  }, [lat, lng, radiusKm, ringIntervals, aircraftMap]);
+  }, [lat, lng, radiusKm, ringIntervals]);
 
   // Non-passive wheel listener for zoom
   useEffect(() => {
