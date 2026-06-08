@@ -129,69 +129,110 @@ function drawCardinals({ ctx, width }: RadarDrawParams) {
   ctx.fillText('N', width / 2, 8);
 }
 
-const WIND_COLOR = 'rgba(255,255,255,0.6)';
-const MAX_ARROW_PX = 40;
+const WIND_COLOR = 'rgba(255,255,255,0.65)';
 const CALM_KTS = 3;
 
-function drawWindArrow(ctx: CanvasRenderingContext2D, cx: number, cy: number, metar: MetarData): void {
+// Meteorological wind barb. Staff points upwind (direction wind comes FROM).
+// Barbs on left side of staff (facing tip): half=5kt, full=10kt, pennant=50kt.
+function drawWindBarb(ctx: CanvasRenderingContext2D, cx: number, cy: number, metar: MetarData, s: number): void {
   const { windDir, windSpeed } = metar;
+
   ctx.save();
   ctx.strokeStyle = WIND_COLOR;
   ctx.fillStyle = WIND_COLOR;
-  ctx.lineWidth = 1.5;
+  ctx.lineWidth = 1.2;
+
+  // Station dot
+  ctx.beginPath();
+  ctx.arc(cx, cy, 2.5 * s, 0, Math.PI * 2);
+  ctx.fill();
 
   if (windSpeed < CALM_KTS) {
     ctx.beginPath();
-    ctx.arc(cx, cy, 5, 0, Math.PI * 2);
+    ctx.arc(cx, cy, 5.5 * s, 0, Math.PI * 2);
     ctx.stroke();
     ctx.restore();
     return;
   }
 
   if (windDir === null) {
-    ctx.setLineDash([3, 3]);
+    ctx.setLineDash([2 * s, 2 * s]);
     ctx.beginPath();
-    ctx.arc(cx, cy, 7, 0, Math.PI * 2);
+    ctx.arc(cx, cy, 6 * s, 0, Math.PI * 2);
     ctx.stroke();
     ctx.restore();
     return;
   }
 
-  const length = Math.min(MAX_ARROW_PX, (windSpeed / 60) * MAX_ARROW_PX + 8);
-  // windDir: degrees FROM which wind blows; arrow points toward that source
+  // windDir 0=from N, 90=from E; canvas: 0=right, angle increases clockwise
   const angle = (windDir - 90) * (Math.PI / 180);
-  const tx = cx + Math.cos(angle) * length;
-  const ty = cy + Math.sin(angle) * length;
+  const staffLen = 22 * s;
+  const ux = Math.cos(angle); // staff direction unit vector
+  const uy = Math.sin(angle);
+  // perpendicular: left of staff when facing tip
+  const px = Math.cos(angle + Math.PI / 2);
+  const py = Math.sin(angle + Math.PI / 2);
 
   ctx.beginPath();
   ctx.moveTo(cx, cy);
-  ctx.lineTo(tx, ty);
+  ctx.lineTo(cx + ux * staffLen, cy + uy * staffLen);
   ctx.stroke();
 
-  // Arrowhead
-  const headLen = 6;
-  const headAngle = 0.4;
-  ctx.beginPath();
-  ctx.moveTo(tx, ty);
-  ctx.lineTo(tx - Math.cos(angle - headAngle) * headLen, ty - Math.sin(angle - headAngle) * headLen);
-  ctx.moveTo(tx, ty);
-  ctx.lineTo(tx - Math.cos(angle + headAngle) * headLen, ty - Math.sin(angle + headAngle) * headLen);
-  ctx.stroke();
+  const barbLen = 8 * s;
+  const halfLen = 5 * s;
+  const pennantLen = 8 * s;
+  const sp = 5 * s;
 
-  ctx.font = '8px monospace';
-  ctx.textAlign = 'left';
-  ctx.textBaseline = 'middle';
-  ctx.fillText(`${windSpeed}kt`, tx + 4, ty);
+  let spd = windSpeed;
+  let pos = staffLen;
+
+  // Pennants (50 kt) — filled triangle
+  while (spd >= 47.5) {
+    const bx = cx + ux * pos;
+    const by = cy + uy * pos;
+    ctx.beginPath();
+    ctx.moveTo(bx, by);
+    ctx.lineTo(bx + px * pennantLen, by + py * pennantLen);
+    ctx.lineTo(cx + ux * (pos - pennantLen), cy + uy * (pos - pennantLen));
+    ctx.closePath();
+    ctx.fill();
+    pos -= pennantLen + 2 * s;
+    spd -= 50;
+  }
+
+  // Full barbs (10 kt)
+  while (spd >= 7.5) {
+    const bx = cx + ux * pos;
+    const by = cy + uy * pos;
+    ctx.beginPath();
+    ctx.moveTo(bx, by);
+    ctx.lineTo(bx + px * barbLen, by + py * barbLen);
+    ctx.stroke();
+    pos -= sp;
+    spd -= 10;
+  }
+
+  // Half barb (5 kt) — always at base end, with gap from full barbs
+  if (spd >= 2.5) {
+    const hpos = Math.max(sp, pos);
+    const bx = cx + ux * hpos;
+    const by = cy + uy * hpos;
+    ctx.beginPath();
+    ctx.moveTo(bx, by);
+    ctx.lineTo(bx + px * halfLen, by + py * halfLen);
+    ctx.stroke();
+  }
 
   ctx.restore();
 }
 
 function drawAirports(params: RadarDrawParams) {
-  const { ctx, width, height, centerLat, centerLon, radiusKm, airports, metar } = params;
+  const { ctx, width, height, centerLat, centerLon, radiusKm, airports, metar, zoomLevel } = params;
   if (!airports.length) return;
 
   const base = '255,255,255';
   const scale = Math.min(width, height) / 2 / radiusKm;
+  const z = Math.sqrt(zoomLevel); // label/barb scale: grows gently with zoom
 
   for (const airport of airports) {
     const center = latLonToCanvas(airport.lat, airport.lon, centerLat, centerLon, radiusKm, width, height);
@@ -203,13 +244,13 @@ function drawAirports(params: RadarDrawParams) {
       ctx.fillStyle = `rgba(${base}, 0.7)`;
       ctx.fill();
       ctx.fillStyle = `rgba(${base}, 0.65)`;
-      ctx.font = '9px monospace';
+      ctx.font = `${Math.round(9 * z)}px monospace`;
       ctx.textAlign = 'left';
       ctx.textBaseline = 'top';
-      ctx.fillText(airport.iata || airport.icao, center.x + 5, center.y - 10);
+      ctx.fillText(airport.iata || airport.icao, center.x + 5 * z, center.y - 10 * z);
       ctx.restore();
       const metarData = metar?.get(airport.icao);
-      if (metarData) drawWindArrow(ctx, center.x, center.y, metarData);
+      if (metarData) drawWindBarb(ctx, center.x, center.y, metarData, z);
       continue;
     }
 
@@ -242,29 +283,28 @@ function drawAirports(params: RadarDrawParams) {
       ctx.stroke();
       ctx.restore();
 
-      // Runway ident labels at each threshold end
       const ux = dx / lenPx;
       const uy = dy / lenPx;
       ctx.save();
-      ctx.font = '7px monospace';
+      ctx.font = `${Math.round(7 * z)}px monospace`;
       ctx.fillStyle = `rgba(${base}, 0.6)`;
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
-      ctx.fillText(runway.le.ident, le.x - ux * 10, le.y - uy * 10);
-      ctx.fillText(runway.he.ident, he.x + ux * 10, he.y + uy * 10);
+      ctx.fillText(runway.le.ident, le.x - ux * 10 * z, le.y - uy * 10 * z);
+      ctx.fillText(runway.he.ident, he.x + ux * 10 * z, he.y + uy * 10 * z);
       ctx.restore();
     }
 
     if (maxLenPx >= 12) {
       ctx.fillStyle = `rgba(${base}, 0.65)`;
-      ctx.font = '9px monospace';
+      ctx.font = `${Math.round(9 * z)}px monospace`;
       ctx.textAlign = 'left';
       ctx.textBaseline = 'top';
-      ctx.fillText(airport.iata || airport.icao, center.x + 5, center.y - 10);
+      ctx.fillText(airport.iata || airport.icao, center.x + 5 * z, center.y - 10 * z);
     }
 
     const metarData = metar?.get(airport.icao);
-    if (metarData) drawWindArrow(ctx, center.x, center.y, metarData);
+    if (metarData) drawWindBarb(ctx, center.x, center.y, metarData, z);
   }
 }
 
