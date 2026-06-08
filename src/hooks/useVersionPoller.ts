@@ -17,16 +17,17 @@ export function useVersionPoller(): void {
       }
     }
 
+    let id: ReturnType<typeof setInterval>;
+
     fetchBuildTime().then((bt) => {
       buildTimeRef.current = bt;
+      id = setInterval(async () => {
+        const bt = await fetchBuildTime();
+        if (bt !== null && buildTimeRef.current !== null && bt !== buildTimeRef.current) {
+          window.location.reload();
+        }
+      }, POLL_INTERVAL_MS);
     });
-
-    const id = setInterval(async () => {
-      const bt = await fetchBuildTime();
-      if (bt !== null && buildTimeRef.current !== null && bt !== buildTimeRef.current) {
-        window.location.reload();
-      }
-    }, POLL_INTERVAL_MS);
 
     return () => clearInterval(id);
   }, []);
