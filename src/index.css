@@ -193,6 +193,23 @@ body.theme-light {
   font-family: monospace;
 }
 
+.fp-row {
+  font-size: 12px;
+  color: var(--text-muted);
+  margin-top: 4px;
+  font-family: monospace;
+}
+
+.fp-raw {
+  font-size: 10px;
+  color: var(--text-muted);
+  margin-top: 3px;
+  font-family: monospace;
+  opacity: 0.7;
+  word-break: break-all;
+  max-width: 220px;
+}
+
 /* ─── Flight bubble (pinned) ─── */
 .bubbles-container {
   position: fixed;
