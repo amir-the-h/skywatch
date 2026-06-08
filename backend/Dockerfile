@@ -5,4 +5,5 @@ WORKDIR /app/backend
 RUN npm ci --omit=dev
 COPY shared/ ../shared/
 COPY backend/src/ ./src/
+COPY public/airports.json ./airports.json
 CMD ["npx", "tsx", "src/server.ts"]
