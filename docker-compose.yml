@@ -11,7 +11,7 @@ services:
     environment:
       REDIS_URL: redis://redis:6379
       POLL_INTERVAL_MS: "1000"
-      AIRPLANES_LIVE_BASE: https://api.airplanes.live/v2/point
+      ADS_SOURCE: https://api.airplanes.live/v2/point
       PORT: "3001"
     depends_on:
       - redis
