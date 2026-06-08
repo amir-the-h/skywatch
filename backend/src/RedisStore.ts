@@ -1,6 +1,6 @@
 // backend/src/RedisStore.ts
 import { createClient } from 'redis';
-import type { Airport, BackendAircraft } from '../../shared/types';
+import type { Airport, BackendAircraft, MetarData } from '../../shared/types';
 import { cellKey } from './GridEngine';
 
 type RedisClient = ReturnType<typeof createClient>;
@@ -186,6 +186,23 @@ export class RedisStore {
         const ap: Airport = JSON.parse(v as string);
         if (this.haversineKm(lat, lon, ap.lat, ap.lon) <= km) result.push(ap);
       } catch { /* skip malformed */ }
+    }
+    return result;
+  }
+
+  async saveMetar(icao: string, data: MetarData): Promise<void> {
+    await this.client.set(`metar:${icao}`, JSON.stringify(data), { EX: 600 });
+  }
+
+  async getManyMetar(icaos: string[]): Promise<Record<string, MetarData>> {
+    if (icaos.length === 0) return {};
+    const keys = icaos.map((icao) => `metar:${icao}`);
+    const values = await this.client.mGet(keys);
+    const result: Record<string, MetarData> = {};
+    for (let i = 0; i < icaos.length; i++) {
+      const v = values[i];
+      if (!v) continue;
+      try { result[icaos[i]] = JSON.parse(v as string); } catch { /* skip */ }
     }
     return result;
   }
