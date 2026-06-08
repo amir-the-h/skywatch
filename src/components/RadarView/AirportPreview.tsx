@@ -1,5 +1,5 @@
 // src/components/RadarView/AirportPreview.tsx
-import type { Airport } from '../../types/airport';
+import type { Airport } from '../../../../shared/types';
 
 interface Props {
   airport: Airport;

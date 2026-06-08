@@ -14,7 +14,7 @@ import { matchesFilter } from '../../lib/aircraftFilter';
 import { useAirports } from '../../hooks/useAirports';
 import { findClosestAirport } from '../../lib/geoUtils';
 import { AirportPreview } from './AirportPreview';
-import type { Airport } from '../../types/airport';
+import type { Airport } from '../../../../shared/types';
 
 export function RadarView() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -61,7 +61,7 @@ export function RadarView() {
   const filtersRef = useRef(filters);
   useEffect(() => { filtersRef.current = filters; }, [filters]);
 
-  const { airports } = useAirports();
+  const airports = useAirports();
   const airportsRef = useRef<Airport[]>([]);
   useEffect(() => { airportsRef.current = airports; }, [airports]);
 

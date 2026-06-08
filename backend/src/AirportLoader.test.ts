@@ -3,7 +3,7 @@ import * as fs from 'fs/promises';
 import * as crypto from 'crypto';
 import type { Airport } from '../../shared/types';
 
-vi.mock('fs/promises');
+vi.mock('fs/promises', () => ({ readFile: vi.fn() }));
 
 const makeAirport = (icao: string): Airport => ({
   icao, iata: icao.slice(1), name: `${icao} Airport`,
@@ -20,7 +20,6 @@ const mockStore = {
 describe('AirportLoader', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    vi.resetModules();
     mockStore.saveAllAirports.mockResolvedValue(undefined);
     mockStore.saveAirportIcaos.mockResolvedValue(undefined);
     mockStore.setAirportsHash.mockResolvedValue(undefined);
