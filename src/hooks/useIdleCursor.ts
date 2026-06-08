@@ -2,17 +2,23 @@ import { useEffect } from 'react';
 
 const IDLE_MS = 5000;
 
+let styleEl: HTMLStyleElement | null = null;
+
+function showCursor() {
+  styleEl?.remove();
+  styleEl = null;
+}
+
+function hideCursor() {
+  if (styleEl) return;
+  styleEl = document.createElement('style');
+  styleEl.textContent = '*{cursor:none!important}';
+  document.head.appendChild(styleEl);
+}
+
 export function useIdleCursor(): void {
   useEffect(() => {
     let timerId: ReturnType<typeof setTimeout> | null = null;
-
-    function showCursor() {
-      document.body.style.cursor = '';
-    }
-
-    function hideCursor() {
-      document.body.style.cursor = 'none';
-    }
 
     function resetTimer() {
       if (timerId !== null) clearTimeout(timerId);
@@ -39,6 +45,7 @@ export function useIdleCursor(): void {
     }
 
     document.addEventListener('fullscreenchange', onFullscreenChange);
+    onFullscreenChange(); // handle already-fullscreen on mount
 
     return () => {
       document.removeEventListener('fullscreenchange', onFullscreenChange);
