@@ -6,6 +6,8 @@ import { RedisStore } from './RedisStore';
 import { FetchQueue } from './FetchQueue';
 import { snapToGrid, cellKey } from './GridEngine';
 import { pollCell } from './CellPoller';
+import { loadAirports } from './AirportLoader';
+import { MetarPoller } from './MetarPoller';
 
 const PORT = parseInt(process.env.PORT ?? '3001');
 const REDIS_URL = process.env.REDIS_URL ?? 'redis://localhost:6379';
@@ -35,6 +37,8 @@ const cellMap = new Map<
   { gLat: number; gLon: number; sockets: Map<string, { userLat: number; userLon: number; radiusKm: number }> }
 >();
 
+const metarPoller = new MetarPoller(store, io);
+
 const queue = new FetchQueue(async (ck: string) => {
   const cell = cellMap.get(ck);
   if (!cell || cell.sockets.size === 0) return;
@@ -63,9 +67,17 @@ async function registerSocket(
   );
   await store.saveCellMeta(gLat, gLon, maxRadiusKm);
   queue.addCell(ck);
+
+  // Send airports + current METAR to this socket
+  const airports = await store.airportsInRadius(userLat, userLon, radiusKm);
+  const icaos = airports.map((a) => a.icao);
+  const metar = await metarPoller.getMetarFor(icaos);
+  io.to(socketId).emit('airports', { airports, metar });
+  metarPoller.addSocket(socketId, icaos);
 }
 
 async function unregisterSocket(socketId: string): Promise<void> {
+  metarPoller.removeSocket(socketId);
   const info = socketMap.get(socketId);  // ← use socketId, not socket.id
   if (!info) return;
 
@@ -105,6 +117,13 @@ io.on('connection', (socket) => {
             socketMap.set(socket.id, { ...existing, userLat: lat, userLon: lon, radiusKm });
             const maxRadiusKm = Math.max(...[...cell.sockets.values()].map((s) => s.radiusKm));
             await store.saveCellMeta(existing.gLat, existing.gLon, maxRadiusKm);
+
+            // Re-emit airports for updated radius
+            const airports = await store.airportsInRadius(lat, lon, radiusKm);
+            const icaos = airports.map((a) => a.icao);
+            const metar = await metarPoller.getMetarFor(icaos);
+            socket.emit('airports', { airports, metar });
+            metarPoller.addSocket(socket.id, icaos);
           }
           return;
         }
@@ -125,6 +144,8 @@ app.get('/health', (_req, res) => res.json({ ok: true }));
 
 async function main() {
   await store.connect();
+  await loadAirports(store);
+  metarPoller.start();
   httpServer.listen(PORT, () => {
     console.log(`[server] listening on port ${PORT}`);
     console.log(`[server] redis: ${REDIS_URL}`);
