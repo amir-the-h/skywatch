@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import type { Airport } from '../types/airport';
+import type { Airport } from '../../../shared/types';
 import { haversineKm, boundingBox, latLonToCanvas, bearingToLatLon, findClosestAirport } from './geoUtils';
 
 describe('haversineKm', () => {
