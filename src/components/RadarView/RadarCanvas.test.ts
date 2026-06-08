@@ -126,8 +126,8 @@ describe('computeLabelPositions', () => {
     });
   });
 
-  describe('opacity fallback for extreme clusters', () => {
-    it('gives at least one label opacity < 1 when 5 aircraft share the same spot', () => {
+  describe('gives at least two labels reduced opacity when 5 aircraft share the same spot', () => {
+    it('gives at least two labels reduced opacity when 5 aircraft share the same spot', () => {
       const aircraft = ['a', 'b', 'c', 'd', 'e'].map(h => ac(h));
       const renderData = makeRenderData(
         ['a', 400, 300], ['b', 400, 300], ['c', 400, 300],

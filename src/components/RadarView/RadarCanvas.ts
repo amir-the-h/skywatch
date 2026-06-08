@@ -298,7 +298,7 @@ const SLOT_ANGLES = [
   -Math.PI / 4,        // 315° upper-right (preferred)
   -Math.PI / 2,        // 270° up
   0,                   // 0°   right
-  (-3 * Math.PI) / 4,  // 225° upper-left
+  (-3 * Math.PI) / 4,  // 225° — upper-left in canvas coords (Y-down)
   Math.PI / 4,         // 45°  lower-right
   Math.PI / 2,         // 90°  down
   Math.PI,             // 180° left
@@ -416,11 +416,15 @@ export function computeLabelPositions(
       }
     }
 
-    committed.push({ lx: bestLx, ly: bestLy, hex: ac.hex });
+      const clampedLx = Math.max(0, Math.min(bestLx, width - labelW));
+    const clampedLy = Math.max(0, Math.min(bestLy, height - labelH));
+    committed.push({ lx: clampedLx, ly: clampedLy, hex: ac.hex });
   }
 
   // Snapshot greedy positions before nudge — used for opacity (reflects slot contention)
   const preNudge = committed.map(c => ({ hex: c.hex, lx: c.lx, ly: c.ly }));
+  const preNudgeByHex = new Map<string, { lx: number; ly: number }>();
+  for (const p of preNudge) preNudgeByHex.set(p.hex, p);
 
   // Phase 2: Force nudge — one O(n²) pass to push overlapping pairs apart
   for (let i = 0; i < committed.length; i++) {
@@ -474,12 +478,14 @@ export function computeLabelPositions(
     const ly = cur.y;
 
     // Opacity: fade proportionally to slot contention — measured from pre-nudge greedy positions
-    // so that extreme clusters that forced overlapping placement become more transparent.
+    // for both the subject and its neighbours, so the lerped (animated) position doesn't pollute
+    // the overlap check with stale coordinates.
+    const preC = preNudgeByHex.get(c.hex)!;
     const labelArea = labelW * labelH;
     let totalOverlap = 0;
-    for (const other of preNudge) {
-      if (other.hex === c.hex) continue;
-      totalOverlap += rectIntersectionArea(lx, ly, labelW, labelH, other.lx, other.ly, labelW, labelH);
+    for (const [ohex, oPos] of preNudgeByHex) {
+      if (ohex === c.hex) continue;
+      totalOverlap += rectIntersectionArea(preC.lx, preC.ly, labelW, labelH, oPos.lx, oPos.ly, labelW, labelH);
     }
     const overlapRatio = totalOverlap / labelArea;
     const opacity = 1 - (1 - LABEL_MIN_OPACITY) * Math.min(1, overlapRatio * 3);
