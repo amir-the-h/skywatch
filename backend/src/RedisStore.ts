@@ -1,6 +1,6 @@
 // backend/src/RedisStore.ts
 import { createClient } from 'redis';
-import type { BackendAircraft } from '../../shared/types';
+import type { Airport, BackendAircraft } from '../../shared/types';
 import { cellKey } from './GridEngine';
 
 type RedisClient = ReturnType<typeof createClient>;
@@ -140,5 +140,53 @@ export class RedisStore {
   async deleteCell(gLat: number, gLon: number): Promise<void> {
     const ck = cellKey(gLat, gLon);
     await this.client.del([`cell:${ck}:meta`, `cell:${ck}:hexes`]);
+  }
+
+  private haversineKm(lat1: number, lon1: number, lat2: number, lon2: number): number {
+    const R = 6371;
+    const toRad = (d: number) => (d * Math.PI) / 180;
+    const dLat = toRad(lat2 - lat1);
+    const dLon = toRad(lon2 - lon1);
+    const a =
+      Math.sin(dLat / 2) ** 2 +
+      Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLon / 2) ** 2;
+    return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  }
+
+  async saveAllAirports(airports: Airport[]): Promise<void> {
+    if (airports.length === 0) return;
+    const pipe = this.client.pipeline();
+    for (const ap of airports) {
+      pipe.set(`airport:${ap.icao}`, JSON.stringify(ap));
+    }
+    await pipe.exec();
+  }
+
+  async saveAirportIcaos(icaos: string[]): Promise<void> {
+    await this.client.sAdd('airports:icaos', icaos);
+  }
+
+  async setAirportsHash(hash: string): Promise<void> {
+    await this.client.set('airports:hash', hash);
+  }
+
+  async getAirportsHash(): Promise<string | null> {
+    return this.client.get('airports:hash');
+  }
+
+  async airportsInRadius(lat: number, lon: number, km: number): Promise<Airport[]> {
+    const icaos = await this.client.sMembers('airports:icaos');
+    if (icaos.length === 0) return [];
+    const keys = icaos.map((icao: string) => `airport:${icao}`);
+    const values = await this.client.mGet(keys);
+    const result: Airport[] = [];
+    for (const v of values) {
+      if (!v) continue;
+      try {
+        const ap: Airport = JSON.parse(v as string);
+        if (this.haversineKm(lat, lon, ap.lat, ap.lon) <= km) result.push(ap);
+      } catch { /* skip malformed */ }
+    }
+    return result;
   }
 }
