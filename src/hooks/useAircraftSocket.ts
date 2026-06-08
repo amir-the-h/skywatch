@@ -1,12 +1,16 @@
 import { useEffect, useRef } from 'react';
 import { io, Socket } from 'socket.io-client';
-import type { BackendAircraft } from '../../shared/types';
+import type { BackendAircraft, AirportsPayload, MetarUpdatePayload } from '../../shared/types';
 import { useAircraftStore } from '../store/aircraftStore';
+import { useAirportStore } from '../store/airportStore';
+import { useMetarStore } from '../store/metarStore';
 import { useSettingsStore } from './useSettings';
 
 export function useAircraftSocket(): void {
   const socketRef = useRef<Socket | null>(null);
   const { mergeAircraft, removeStale } = useAircraftStore();
+  const setAirports = useAirportStore((s) => s.setAirports);
+  const mergeMetar = useMetarStore((s) => s.mergeMetar);
   const { lat, lng, radiusKm } = useSettingsStore();
 
   // Connect on mount, set up listener, cleanup on unmount
@@ -25,10 +29,19 @@ export function useAircraftSocket(): void {
       removeStale(new Set(data.aircraft.map((ac) => ac.hex)));
     });
 
+    socket.on('airports', (data: AirportsPayload) => {
+      setAirports(data.airports);
+      mergeMetar(data.metar);
+    });
+
+    socket.on('metar_update', (data: MetarUpdatePayload) => {
+      mergeMetar(data);
+    });
+
     return () => {
       socket.disconnect();
     };
-  }, [mergeAircraft, removeStale]);
+  }, [mergeAircraft, removeStale, setAirports, mergeMetar]);
 
   // Register location on every connect (initial + reconnect) and when settings change
   useEffect(() => {
