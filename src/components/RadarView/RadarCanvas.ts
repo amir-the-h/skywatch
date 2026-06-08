@@ -226,13 +226,54 @@ function drawWindBarb(ctx: CanvasRenderingContext2D, cx: number, cy: number, met
   ctx.restore();
 }
 
+interface RunwayLabel {
+  text: string;
+  x: number;
+  y: number;
+  anchorX: number;
+  anchorY: number;
+}
+
+function resolveRunwayLabels(labels: RunwayLabel[], fontSize: number): void {
+  const cw = fontSize * 0.62; // approx monospace char width
+  const lh = fontSize * 1.5;
+  for (let iter = 0; iter < 10; iter++) {
+    let moved = false;
+    for (let i = 0; i < labels.length; i++) {
+      for (let j = i + 1; j < labels.length; j++) {
+        const a = labels[i], b = labels[j];
+        const minW = (a.text.length + b.text.length) * cw / 2 + 6;
+        const minH = lh + 3;
+        const dx = b.x - a.x, dy = b.y - a.y;
+        if (Math.abs(dx) < minW && Math.abs(dy) < minH) {
+          if (Math.abs(dx) >= Math.abs(dy)) {
+            const push = (minW - Math.abs(dx)) / 2 + 1;
+            const dir = dx >= 0 ? 1 : -1;
+            a.x -= dir * push;
+            b.x += dir * push;
+          } else {
+            const push = (minH - Math.abs(dy)) / 2 + 1;
+            const dir = dy >= 0 ? 1 : -1;
+            a.y -= dir * push;
+            b.y += dir * push;
+          }
+          moved = true;
+        }
+      }
+    }
+    if (!moved) break;
+  }
+}
+
 function drawAirports(params: RadarDrawParams) {
   const { ctx, width, height, centerLat, centerLon, radiusKm, airports, metar, zoomLevel } = params;
   if (!airports.length) return;
 
   const base = '255,255,255';
   const scale = Math.min(width, height) / 2 / radiusKm;
-  const z = Math.sqrt(zoomLevel); // label/barb scale: grows gently with zoom
+  const z = Math.sqrt(zoomLevel);
+  const identSize = Math.round(7 * z);
+  const labelSize = Math.round(9 * z);
 
   for (const airport of airports) {
     const center = latLonToCanvas(airport.lat, airport.lon, centerLat, centerLon, radiusKm, width, height);
@@ -244,7 +285,7 @@ function drawAirports(params: RadarDrawParams) {
       ctx.fillStyle = `rgba(${base}, 0.7)`;
       ctx.fill();
       ctx.fillStyle = `rgba(${base}, 0.65)`;
-      ctx.font = `${Math.round(9 * z)}px monospace`;
+      ctx.font = `${labelSize}px monospace`;
       ctx.textAlign = 'left';
       ctx.textBaseline = 'top';
       ctx.fillText(airport.iata || airport.icao, center.x + 5 * z, center.y - 10 * z);
@@ -255,6 +296,7 @@ function drawAirports(params: RadarDrawParams) {
     }
 
     let maxLenPx = 0;
+    const identLabels: RunwayLabel[] = [];
 
     for (const runway of airport.runways) {
       const le = latLonToCanvas(runway.le.lat, runway.le.lon, centerLat, centerLon, radiusKm, width, height);
@@ -266,13 +308,13 @@ function drawAirports(params: RadarDrawParams) {
       if (lenPx < 8) continue;
       maxLenPx = Math.max(maxLenPx, lenPx);
 
-      const cx = (le.x + he.x) / 2;
-      const cy = (le.y + he.y) / 2;
+      const rcx = (le.x + he.x) / 2;
+      const rcy = (le.y + he.y) / 2;
       const angle = Math.atan2(dy, dx);
       const widthPx = Math.max(1, runway.widthFt * 0.0003048 * scale);
 
       ctx.save();
-      ctx.translate(cx, cy);
+      ctx.translate(rcx, rcy);
       ctx.rotate(angle);
       ctx.fillStyle = `rgba(${base}, 0.12)`;
       ctx.strokeStyle = `rgba(${base}, 0.45)`;
@@ -285,19 +327,41 @@ function drawAirports(params: RadarDrawParams) {
 
       const ux = dx / lenPx;
       const uy = dy / lenPx;
-      ctx.save();
-      ctx.font = `${Math.round(7 * z)}px monospace`;
-      ctx.fillStyle = `rgba(${base}, 0.6)`;
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'middle';
-      ctx.fillText(runway.le.ident, le.x - ux * 10 * z, le.y - uy * 10 * z);
-      ctx.fillText(runway.he.ident, he.x + ux * 10 * z, he.y + uy * 10 * z);
-      ctx.restore();
+      const off = 14 * z;
+      identLabels.push({ text: runway.le.ident, x: le.x - ux * off, y: le.y - uy * off, anchorX: le.x, anchorY: le.y });
+      identLabels.push({ text: runway.he.ident, x: he.x + ux * off, y: he.y + uy * off, anchorX: he.x, anchorY: he.y });
     }
+
+    resolveRunwayLabels(identLabels, identSize);
+
+    for (const lbl of identLabels) {
+      const dist = Math.hypot(lbl.x - lbl.anchorX, lbl.y - lbl.anchorY);
+      if (dist > identSize * 1.5) {
+        ctx.save();
+        ctx.strokeStyle = `rgba(${base}, 0.3)`;
+        ctx.lineWidth = 0.7;
+        ctx.setLineDash([2, 3]);
+        ctx.beginPath();
+        ctx.moveTo(lbl.anchorX, lbl.anchorY);
+        ctx.lineTo(lbl.x, lbl.y);
+        ctx.stroke();
+        ctx.restore();
+      }
+    }
+
+    ctx.save();
+    ctx.font = `${identSize}px monospace`;
+    ctx.fillStyle = `rgba(${base}, 0.6)`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    for (const lbl of identLabels) {
+      ctx.fillText(lbl.text, lbl.x, lbl.y);
+    }
+    ctx.restore();
 
     if (maxLenPx >= 12) {
       ctx.fillStyle = `rgba(${base}, 0.65)`;
-      ctx.font = `${Math.round(9 * z)}px monospace`;
+      ctx.font = `${labelSize}px monospace`;
       ctx.textAlign = 'left';
       ctx.textBaseline = 'top';
       ctx.fillText(airport.iata || airport.icao, center.x + 5 * z, center.y - 10 * z);
