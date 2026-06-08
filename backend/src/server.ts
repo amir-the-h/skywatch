@@ -86,6 +86,8 @@ async function unregisterSocket(socketId: string): Promise<void> {
 }
 
 io.on('connection', (socket) => {
+  console.log(`[socket] connect   ${socket.id} (total: ${io.engine.clientsCount})`);
+
   socket.on(
     'register_location',
     async ({ lat, lon, radiusKm }: { lat: number; lon: number; radiusKm: number }) => {
@@ -107,11 +109,14 @@ io.on('connection', (socket) => {
           return;
         }
       }
+      const { gLat, gLon } = snapToGrid(lat, lon);
+      console.log(`[socket] register  ${socket.id} → lat=${lat.toFixed(4)} lon=${lon.toFixed(4)} radius=${radiusKm}km cell=${gLat}:${gLon}`);
       await registerSocket(socket.id, lat, lon, radiusKm);
     }
   );
 
   socket.on('disconnect', async () => {
+    console.log(`[socket] disconnect ${socket.id} (total: ${io.engine.clientsCount - 1})`);
     await unregisterSocket(socket.id);
   });
 });
@@ -121,7 +126,9 @@ app.get('/health', (_req, res) => res.json({ ok: true }));
 async function main() {
   await store.connect();
   httpServer.listen(PORT, () => {
-    console.log(`Backend listening on port ${PORT}`);
+    console.log(`[server] listening on port ${PORT}`);
+    console.log(`[server] redis: ${REDIS_URL}`);
+    console.log(`[server] poll interval: ${POLL_INTERVAL_MS}ms`);
   });
 }
 
