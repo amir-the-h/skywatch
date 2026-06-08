@@ -501,42 +501,36 @@ export function computeLabelPositions(
 }
 
 function drawAircraftLabels(params: RadarDrawParams, renderData: Map<string, AircraftRenderData>) {
-  const { ctx, width, height, aircraft, theme, labelConditions, pinnedHexes, zoomLevel } = params;
+  const { ctx, width, height, aircraft, theme, labelConditions, pinnedHexes, zoomLevel, panOffset } = params;
   const textColor = theme === 'dark' ? '#e5e7eb' : '#1f2937';
   const s = iconScaleForZoom(zoomLevel);
-
   const labelW = LABEL_W * s;
   const labelH = LABEL_H * s;
-  const labelOffset = LABEL_OFFSET_NEAR * s;
   const pad = 7 * s;
   const r = 5 * s;
 
+  const placements = computeLabelPositions(
+    { width, height, aircraft, pinnedHexes, labelConditions, panOffset, zoomLevel },
+    renderData,
+    s,
+  );
+
   for (const ac of aircraft) {
-    const rd = renderData.get(ac.hex);
-    if (!rd) continue;
-    if (!shouldShowLabel(ac, pinnedHexes, labelConditions)) continue;
+    const placement = placements.get(ac.hex);
+    if (!placement) continue;
+    const rd = renderData.get(ac.hex)!;
     const { pos, color } = rd;
-    const callsign = ac.flight || ac.hex;
+    const { lx, ly, opacity, connX, connY } = placement;
+    const callsign = ac.flight ?? ac.hex;
     const phase = ac.phase;
     const phaseColor = getPhaseColor(phase);
-
-    let dx = labelOffset;
-    let dy = -labelOffset;
-    if (pos.x > width - labelW - 20) dx = -(labelW + labelOffset);
-    if (pos.y < labelH + 20) dy = labelOffset;
-
-    const lx = pos.x + dx;
-    const ly = pos.y + dy;
-
-    const connX = dx > 0 ? lx : lx + labelW;
-    const connY = dy > 0 ? ly : ly + labelH;
 
     // Connector line
     ctx.save();
     ctx.setLineDash([3, 3]);
     ctx.strokeStyle = color;
     ctx.lineWidth = 1;
-    ctx.globalAlpha = 0.6;
+    ctx.globalAlpha = opacity * 0.6;
     ctx.shadowBlur = 0;
     ctx.beginPath();
     ctx.moveTo(pos.x, pos.y);
@@ -544,10 +538,12 @@ function drawAircraftLabels(params: RadarDrawParams, renderData: Map<string, Air
     ctx.stroke();
     ctx.restore();
 
-    // Label background
+    // Label box + all text
     ctx.save();
     ctx.shadowBlur = 0;
-    ctx.globalAlpha = 1;
+    ctx.globalAlpha = opacity;
+
+    // Background
     ctx.fillStyle = theme === 'dark' ? 'rgba(10, 11, 15, 0.82)' : 'rgba(240, 242, 248, 0.92)';
     ctx.beginPath();
     ctx.roundRect(lx, ly, labelW, labelH, r);

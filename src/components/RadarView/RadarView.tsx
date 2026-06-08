@@ -4,7 +4,7 @@ import { useAircraftStore } from '../../store/aircraftStore';
 import { useSettingsStore } from '../../hooks/useSettings';
 import { interpolatePosition } from '../../lib/interpolate';
 import { aircraftColor } from '../../lib/colorSystem';
-import { drawRadar } from './RadarCanvas';
+import { drawRadar, resetLabelState } from './RadarCanvas';
 import { FlightBubble } from '../FlightBubble/FlightBubble';
 import { FlightPreview } from '../FlightBubble/FlightPreview';
 import { latLonToCanvas } from '../../lib/geoUtils';
@@ -118,7 +118,10 @@ export function RadarView() {
     };
 
     rafRef.current = requestAnimationFrame(loop);
-    return () => cancelAnimationFrame(rafRef.current);
+    return () => {
+      cancelAnimationFrame(rafRef.current);
+      resetLabelState();
+    };
   }, [lat, lng, radiusKm, ringIntervals, theme, aircraftMap]);
 
   // Non-passive wheel listener for zoom
