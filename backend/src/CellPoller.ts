@@ -77,6 +77,7 @@ export async function pollCell(
     .then((res) => (res.ok ? (res.json() as Promise<{ ac?: unknown[] }>) : Promise.resolve({ ac: [] })))
     .then((data) => data.ac ?? [])
     .catch(() => []);
+  const fetchedAt = Date.now();
 
   const ck = `${gLat}:${gLon}`;
   const count = (pollCounters.get(ck) ?? 0) + 1;
@@ -111,6 +112,7 @@ export async function pollCell(
     );
     io.to(socketId).emit('aircraft_update', {
       aircraft: filtered,
+      fetchedAt,
       cell: { lat: gLat, lon: gLon, radiusKm: info.radiusKm },
     });
   }

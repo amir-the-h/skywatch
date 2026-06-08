@@ -1,5 +1,5 @@
 // src/components/MapView/MapView.tsx
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { MapContainer, TileLayer, useMap } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
 import { useAircraftStore } from '../../store/aircraftStore';
@@ -35,10 +35,15 @@ export function MapView() {
   const filters = useFilterStore();
 
   const [renderTick, setRenderTick] = useState(0);
+  const rafRef = useRef<number>(0);
   const [hoverPos, setHoverPos] = useState<{ x: number; y: number } | null>(null);
   useEffect(() => {
-    const id = setInterval(() => setRenderTick((t) => t + 1), 100);
-    return () => clearInterval(id);
+    const loop = () => {
+      setRenderTick((t) => t + 1);
+      rafRef.current = requestAnimationFrame(loop);
+    };
+    rafRef.current = requestAnimationFrame(loop);
+    return () => cancelAnimationFrame(rafRef.current);
   }, []);
 
   const now = Date.now();

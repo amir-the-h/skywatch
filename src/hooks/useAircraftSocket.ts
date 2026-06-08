@@ -20,8 +20,8 @@ export function useAircraftSocket(): void {
     const socket = io(backendUrl);
     socketRef.current = socket;
 
-    socket.on('aircraft_update', (data: { aircraft: BackendAircraft[] }) => {
-      mergeAircraft(data.aircraft);
+    socket.on('aircraft_update', (data: { aircraft: BackendAircraft[]; fetchedAt: number }) => {
+      mergeAircraft(data.aircraft, data.fetchedAt);
       removeStale(new Set(data.aircraft.map((ac) => ac.hex)));
     });
 
