@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { persist } from 'zustand/middleware';
 import type { FlightPhase } from '../lib/flightPhase';
 import type { FilterCriteria } from '../lib/aircraftFilter';
 
@@ -23,15 +24,20 @@ export interface FilterStore extends FilterCriteria {
   reset: () => void;
 }
 
-export const useFilterStore = create<FilterStore>((set) => ({
-  ...DEFAULT_FILTER,
-  setCallsigns: (callsigns) => set({ callsigns }),
-  setAltRange: (altMin, altMax) => set({ altMin, altMax }),
-  setPhases: (phases) => set({ phases }),
-  setManufacturers: (manufacturers) => set({ manufacturers }),
-  setModels: (models) => set({ models }),
-  reset: () => set(DEFAULT_FILTER),
-}));
+export const useFilterStore = create<FilterStore>()(
+  persist(
+    (set) => ({
+      ...DEFAULT_FILTER,
+      setCallsigns: (callsigns) => set({ callsigns }),
+      setAltRange: (altMin, altMax) => set({ altMin, altMax }),
+      setPhases: (phases) => set({ phases }),
+      setManufacturers: (manufacturers) => set({ manufacturers }),
+      setModels: (models) => set({ models }),
+      reset: () => set(DEFAULT_FILTER),
+    }),
+    { name: 'ft-filters' }
+  )
+);
 
 export function isFilterActive(f: FilterCriteria): boolean {
   return (
