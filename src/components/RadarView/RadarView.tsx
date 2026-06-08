@@ -19,7 +19,7 @@ import type { Airport } from '../../types/airport';
 export function RadarView() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const rafRef = useRef<number>(0);
-  const { lat, lng, radiusKm, ringIntervals, theme, trailLength, labelConditions } = useSettingsStore();
+  const { lat, lng, radiusKm, ringIntervals, trailLength, labelConditions } = useSettingsStore();
   const aircraftMap = useAircraftStore((s) => s.aircraft);
   const pinnedHexes = useAircraftStore((s) => s.pinnedHexes);
   const hoveredHex = useAircraftStore((s) => s.hoveredHex);
@@ -108,7 +108,6 @@ export function RadarView() {
         aircraft,
         hoveredHex: hoveredHexRef.current,
         pinnedHexes: pinnedHexesRef.current,
-        theme,
         panOffset: panOffsetRef.current,
         trailLength: trailLengthRef.current,
         labelConditions: labelConditionsRef.current,
@@ -123,7 +122,7 @@ export function RadarView() {
       cancelAnimationFrame(rafRef.current);
       resetLabelState();
     };
-  }, [lat, lng, radiusKm, ringIntervals, theme, aircraftMap]);
+  }, [lat, lng, radiusKm, ringIntervals, aircraftMap]);
 
   // Non-passive wheel listener for zoom
   useEffect(() => {
@@ -398,7 +397,7 @@ export function RadarView() {
         {[...pinnedHexes].map((hex) => {
           const ac = aircraftMap.get(hex);
           if (!ac || !matchesFilter(ac, filters)) return null;
-          const color = aircraftColor(ac.t, theme);
+          const color = aircraftColor(ac.t);
           return <FlightBubble key={hex} aircraft={ac} color={color} />;
         })}
       </div>

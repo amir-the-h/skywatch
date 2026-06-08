@@ -12,10 +12,9 @@ interface Props {
 const HEADING_KM = 5;
 
 export function AircraftOverlay({ aircraft }: Props) {
-  const theme = useSettingsStore((s) => s.theme);
   const trailLength = useSettingsStore((s) => s.trailLength);
 
-  const color = aircraftColor(aircraft.t, theme);
+  const color = aircraftColor(aircraft.t);
   const trailColor = lightenHsl(color, 0.2);
   const fullHistory = aircraft.pathHistory ?? [];
   const history = trailLength > 0 ? fullHistory.slice(-trailLength) : [];

@@ -15,13 +15,12 @@ interface Props {
 const ICON_SIZE = 40;
 
 export function AircraftMarker({ aircraft }: Props) {
-  const theme = useSettingsStore((s) => s.theme);
   const pin = useAircraftStore((s) => s.pin);
   const setHovered = useAircraftStore((s) => s.setHovered);
   const isPinned = useAircraftStore((s) => s.pinnedHexes.has(aircraft.hex));
   const isEmergency = (!!aircraft.emergency && aircraft.emergency !== 'none') || ['7700','7600','7500'].includes(aircraft.squawk ?? '');
 
-  const color = aircraftColor(aircraft.t, theme);
+  const color = aircraftColor(aircraft.t);
   const family = getAircraftFamily(aircraft.t);
   const path = SILHOUETTE_PATHS[family];
   const glowStdDev = isEmergency ? 5 : isPinned ? 3 : 1.5;

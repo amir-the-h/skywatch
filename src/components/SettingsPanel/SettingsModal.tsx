@@ -177,19 +177,6 @@ export function SettingsModal({ onClose }: Props) {
           )}
 
           <label>
-            Theme
-            <select
-              value={settings.theme}
-              onChange={(e) =>
-                settings.update({ theme: e.target.value as 'dark' | 'light' })
-              }
-            >
-              <option value="dark">Dark</option>
-              <option value="light">Light</option>
-            </select>
-          </label>
-
-          <label>
             Radar rings (comma-separated km)
             <input
               type="text"

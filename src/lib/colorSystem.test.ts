@@ -23,24 +23,17 @@ describe('getManufacturer', () => {
 
 describe('aircraftColor', () => {
   it('returns a valid hsl string', () => {
-    const color = aircraftColor('B738', 'dark');
+    const color = aircraftColor('B738');
     expect(color).toMatch(/^hsl\(\d+,\s*\d+%,\s*\d+%\)$/);
   });
 
   it('is deterministic — same type gives same color', () => {
-    expect(aircraftColor('A320', 'dark')).toBe(aircraftColor('A320', 'dark'));
+    expect(aircraftColor('A320')).toBe(aircraftColor('A320'));
   });
 
   it('same manufacturer → same hue family', () => {
     const hue = (color: string) => parseInt(color.match(/hsl\((\d+)/)![1]);
-    expect(hue(aircraftColor('B738', 'dark'))).toBe(hue(aircraftColor('B77W', 'dark')));
-  });
-
-  it('dark theme uses higher lightness than light theme', () => {
-    const lightness = (color: string) => parseInt(color.match(/(\d+)%\)$/)![1]);
-    expect(lightness(aircraftColor('A320', 'dark'))).toBeGreaterThan(
-      lightness(aircraftColor('A320', 'light'))
-    );
+    expect(hue(aircraftColor('B738'))).toBe(hue(aircraftColor('B77W')));
   });
 });
 
@@ -60,7 +53,7 @@ describe('lightenHsl', () => {
   });
 
   it('produces a valid hsl string for aircraft colors', () => {
-    const base = aircraftColor('B738', 'dark');
+    const base = aircraftColor('B738');
     const bright = lightenHsl(base, 0.2);
     expect(bright).toMatch(/^hsl\(\d+,\s*\d+%,\s*\d+%\)$/);
   });

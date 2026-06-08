@@ -126,12 +126,10 @@ describe('computeLabelPositions', () => {
     });
   });
 
-  it('gives at least two labels reduced opacity when 5 aircraft share the same spot', () => {
-    const aircraft = ['a', 'b', 'c', 'd', 'e'].map(h => ac(h));
-    const renderData = makeRenderData(
-      ['a', 400, 300], ['b', 400, 300], ['c', 400, 300],
-      ['d', 400, 300], ['e', 400, 300],
-    );
+  it('gives at least two labels reduced opacity when 10 aircraft share the same spot', () => {
+    const hexes = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j'];
+    const aircraft = hexes.map(h => ac(h));
+    const renderData = makeRenderData(...hexes.map(h => [h, 400, 300] as [string, number, number]));
     const result = computeLabelPositions({ ...BASE, aircraft }, renderData, 1);
     const opacities = [...result.values()].map(p => p.opacity);
     expect(opacities.filter(o => o < 1).length).toBeGreaterThanOrEqual(2);

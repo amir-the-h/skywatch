@@ -36,8 +36,8 @@ export default function App() {
   const [showSettings, setShowSettings] = useState(false);
 
   useEffect(() => {
-    document.body.className = `theme-${settings.theme}`;
-  }, [settings.theme]);
+    document.body.className = 'theme-dark';
+  }, []);
 
   useAircraftSocket();
   useVersionPoller();
@@ -85,13 +85,6 @@ export default function App() {
         </div>
 
         <div className="hud-topright">
-          <button
-            className="icon-btn"
-            onClick={() => settings.update({ theme: settings.theme === 'dark' ? 'light' : 'dark' })}
-            title="Toggle theme"
-          >
-            {settings.theme === 'dark' ? '☀' : '☾'}
-          </button>
           <button
             className="icon-btn"
             onClick={() => setShowSettings(true)}

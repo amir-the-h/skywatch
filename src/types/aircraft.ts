@@ -29,7 +29,6 @@ export interface Settings {
   lat: number;
   lng: number;
   radiusKm: number;
-  theme: 'dark' | 'light';
   tileSource: 'osm' | 'satellite';
   view: 'map' | 'radar';
   ringIntervals: number[];
@@ -43,7 +42,6 @@ export const DEFAULT_SETTINGS: Settings = {
   lat: 41.0082,
   lng: 28.9784,
   radiusKm: 150,
-  theme: 'dark',
   tileSource: 'osm',
   view: 'map',
   ringIntervals: [25, 50, 100, 150],

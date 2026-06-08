@@ -28,7 +28,7 @@ function MapRecenter({ lat, lng }: { lat: number; lng: number }) {
 }
 
 export function MapView() {
-  const { lat, lng, tileSource, theme } = useSettingsStore();
+  const { lat, lng, tileSource } = useSettingsStore();
   const aircraftMap = useAircraftStore((s) => s.aircraft);
   const pinnedHexes = useAircraftStore((s) => s.pinnedHexes);
   const hoveredHex = useAircraftStore((s) => s.hoveredHex);
@@ -82,7 +82,7 @@ export function MapView() {
         {[...pinnedHexes].map((hex) => {
           const ac = aircraftMap.get(hex);
           if (!ac || !matchesFilter(ac, filters)) return null;
-          const color = aircraftColor(ac.t, theme);
+          const color = aircraftColor(ac.t);
           return <FlightBubble key={hex} aircraft={ac} color={color} />;
         })}
       </div>
