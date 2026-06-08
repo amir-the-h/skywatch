@@ -5,7 +5,7 @@ import type { Airport } from '../../shared/types';
 import type { RedisStore } from './RedisStore';
 
 const AIRPORTS_PATH =
-  process.env.AIRPORTS_JSON_PATH ?? path.resolve(__dirname, '../../dist/airports.json');
+  process.env.AIRPORTS_JSON_PATH ?? path.resolve(__dirname, '../airports.json');
 
 export async function loadAirports(store: RedisStore): Promise<void> {
   const raw = await fs.readFile(AIRPORTS_PATH, 'utf-8');
