@@ -1,6 +1,6 @@
 // src/components/RadarView/RadarCanvas.ts
 import type { Aircraft, LabelCondition } from '../../types/aircraft';
-import type { Airport, MetarData } from '../../../../shared/types';
+import type { Airport, MetarData, PointWeather } from '../../../../shared/types';
 import { aircraftColor, lightenHsl } from '../../lib/colorSystem';
 import { getAircraftFamily, SILHOUETTE_PATHS } from '../../lib/silhouettes';
 import { latLonToCanvas } from '../../lib/geoUtils';
@@ -49,6 +49,7 @@ export interface RadarDrawParams {
   airports: Airport[];
   zoomLevel: number;
   metar?: Map<string, MetarData>;
+  centerWeather?: PointWeather | null;
 }
 
 const BG_COLOR = '#0a0b0f';
@@ -65,6 +66,9 @@ export function drawRadar(params: RadarDrawParams) {
   drawRings(params);
   drawGrid(params);
   drawAirports(params);
+  if (params.centerWeather) {
+    drawWindBarb(ctx, width / 2, height / 2, params.centerWeather, Math.sqrt(params.zoomLevel));
+  }
   const renderData = drawAllAircraft(params);
   drawAircraftLabels(params, renderData);
   ctx.restore();
@@ -134,7 +138,7 @@ const CALM_KTS = 3;
 
 // Meteorological wind barb. Staff points upwind (direction wind comes FROM).
 // Barbs on left side of staff (facing tip): half=5kt, full=10kt, pennant=50kt.
-function drawWindBarb(ctx: CanvasRenderingContext2D, cx: number, cy: number, metar: MetarData, s: number): void {
+function drawWindBarb(ctx: CanvasRenderingContext2D, cx: number, cy: number, metar: { windDir: number | null; windSpeed: number }, s: number): void {
   const { windDir, windSpeed } = metar;
 
   ctx.save();
