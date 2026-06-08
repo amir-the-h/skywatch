@@ -1,73 +1,117 @@
-# React + TypeScript + Vite
+# SkyWatch
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+Real-time flight tracker with map and radar views, powered by ADS-B data.
 
-Currently, two official plugins are available:
+![SkyWatch](src/assets/hero.png)
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+## Features
 
-## React Compiler
+- **Live aircraft tracking** — streams positions via WebSocket, updates every second
+- **Two views** — interactive Leaflet map (OSM or satellite) and a sweep-radar display
+- **Aircraft trails** — configurable trail length showing recent flight path
+- **Color-coded by manufacturer** — Boeing, Airbus, Embraer, Gulfstream, and more each get a distinct color
+- **Airport overlay** — shows large/medium/small airports with runway geometry and ident labels
+- **Filtering** — filter by flight phase, aircraft type, altitude, and more
+- **Configurable radius** — set your center location and tracking radius (up to ~500 km)
+- **Smart label visibility** — labels declutter automatically based on zoom and density
+- **Auto-reload on deploy** — frontend polls for new backend versions and reloads seamlessly
+- **Idle cursor hide** — cursor disappears after inactivity for a clean fullscreen experience
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+## Architecture
 
-## Expanding the ESLint configuration
-
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
-
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
-
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+```
+┌─────────────┐     WebSocket      ┌──────────────┐     HTTP      ┌──────────────────┐
+│   Browser   │ ◄────────────────► │   Backend    │ ────────────► │  ADS-B API       │
+│  React/Vite │                    │  Node/Express│               │ airplanes.live   │
+└─────────────┘                    └──────┬───────┘               │  or adsb.lol     │
+                                          │                        └──────────────────┘
+                                          ▼
+                                   ┌──────────────┐
+                                   │    Redis     │
+                                   │  (aircraft   │
+                                   │   cache)     │
+                                   └──────────────┘
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+The backend snaps each client's viewport to a grid cell, polls the configured ADS-B source for that cell, and caches results in Redis. Multiple clients watching the same area share one upstream poll. Aircraft positions are interpolated client-side between server pushes for smooth animation.
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
+## Stack
 
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+| Layer | Tech |
+|-------|------|
+| Frontend | React 19, TypeScript, Vite, Zustand |
+| Map | Leaflet + react-leaflet |
+| Backend | Node.js, Express, Socket.IO |
+| Cache | Redis |
+| Container | Docker + Docker Compose |
+| Data source | [airplanes.live](https://airplanes.live) / [adsb.lol](https://adsb.lol) |
+
+## Running Locally
+
+**Prerequisites:** Node.js 22+, Redis running locally (or Docker)
+
+```bash
+# Install frontend deps
+npm install
+
+# Install backend deps
+cd backend && npm install && cd ..
+
+# Start Redis (if using Docker)
+docker run -d -p 6379:6379 redis:7-alpine
+
+# Start backend
+cd backend && REDIS_URL=redis://localhost:6379 npx tsx src/server.ts
+
+# Start frontend (separate terminal)
+npm run dev
 ```
+
+Open `http://localhost:5173`.
+
+## Docker Compose
+
+```bash
+# Copy and edit env
+cp .env.example .env  # set ADS_SOURCE and POLL_INTERVAL_MS
+
+docker compose up -d
+```
+
+The frontend is served by nginx on port 80. Set `VITE_BACKEND_URL` build arg to your backend's public URL.
+
+### Environment Variables
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `ADS_SOURCE` | `https://api.airplanes.live/v2/point` | ADS-B API base URL |
+| `POLL_INTERVAL_MS` | `3000` | How often to poll the upstream API per grid cell |
+| `REDIS_URL` | `redis://localhost:6379` | Redis connection string |
+| `PORT` | `3001` | Backend port |
+
+## Development
+
+```bash
+npm run dev          # frontend dev server with HMR
+npm test             # run unit tests (Vitest)
+npm run lint         # ESLint
+npm run build        # production build
+```
+
+```bash
+cd backend
+npm test             # backend unit tests
+```
+
+## ADS-B Data Sources
+
+Two free public APIs are supported (switch via `ADS_SOURCE`):
+
+- **airplanes.live** — `https://api.airplanes.live/v2/point/{lat}/{lon}/{radius}`
+- **adsb.lol** — `https://api.adsb.lol/v2/point/{lat}/{lon}/{radius}`
+
+Both return the same response format. For own-hardware ingestion (RTL-SDR dongle + `docker-adsb-ultrafeeder`), point `ADS_SOURCE` at your local readsb instance.
+
+## License
+
+MIT
