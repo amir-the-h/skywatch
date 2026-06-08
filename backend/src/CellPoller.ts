@@ -73,7 +73,9 @@ export async function pollCell(
 ): Promise<void> {
   const radiusNm = Math.round(maxRadiusKm * KM_TO_NM);
 
-  const rawAc: unknown[] = await fetch(`${SOURCE}/${gLat}/${gLon}/${radiusNm}`)
+  const rawAc: unknown[] = await fetch(`${SOURCE}/${gLat}/${gLon}/${radiusNm}`, {
+    headers: { 'User-Agent': 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36' },
+  })
     .then((res) => (res.ok ? (res.json() as Promise<{ ac?: unknown[] }>) : Promise.resolve({ ac: [] })))
     .then((data) => data.ac ?? [])
     .catch(() => []);
@@ -100,8 +102,8 @@ export async function pollCell(
     if (!normalized) continue;
 
     await store.saveAircraft(normalized);
-    const saved = await store.getAircraft(normalized.hex);
-    if (saved) aircraft.push(saved);
+    const pathHistory = await store.getPathHistory(normalized.hex);
+    aircraft.push({ ...normalized, pathHistory });
   }
 
   await store.saveCellHexes(gLat, gLon, aircraft.map((a) => a.hex));

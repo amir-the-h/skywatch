@@ -11,7 +11,7 @@ function serializeAircraft(ac: Omit<BackendAircraft, 'pathHistory'>): Record<str
     flight: ac.flight,
     r: ac.r,
     t: ac.t,
-    desc: ac.desc ?? '',
+    ...(ac.desc ? { desc: ac.desc } : {}),
     lat: String(ac.lat),
     lon: String(ac.lon),
     alt_baro: String(ac.alt_baro),
@@ -24,12 +24,12 @@ function serializeAircraft(ac: Omit<BackendAircraft, 'pathHistory'>): Record<str
     nav_altitude_mcp: ac.nav_altitude_mcp != null ? String(ac.nav_altitude_mcp) : '',
     nav_heading: ac.nav_heading != null ? String(ac.nav_heading) : '',
     nav_modes: ac.nav_modes ? JSON.stringify(ac.nav_modes) : '',
-    ownOp: ac.ownOp ?? '',
-    year: ac.year ?? '',
-    orig_iata: ac.orig_iata ?? '',
-    dest_iata: ac.dest_iata ?? '',
-    orig_name: ac.orig_name ?? '',
-    dest_name: ac.dest_name ?? '',
+    ...(ac.ownOp ? { ownOp: ac.ownOp } : {}),
+    ...(ac.year ? { year: ac.year } : {}),
+    ...(ac.orig_iata ? { orig_iata: ac.orig_iata } : {}),
+    ...(ac.dest_iata ? { dest_iata: ac.dest_iata } : {}),
+    ...(ac.orig_name ? { orig_name: ac.orig_name } : {}),
+    ...(ac.dest_name ? { dest_name: ac.dest_name } : {}),
     seen: String(ac.seen),
     phase: ac.phase,
   };
@@ -112,6 +112,16 @@ export class RedisStore {
       .reverse();
 
     return deserializeAircraft(hash, pathHistory);
+  }
+
+  async getPathHistory(hex: string): Promise<{ lat: number; lon: number }[]> {
+    const rawPath = await this.client.lRange(`aircraft:${hex}:path`, 0, -1);
+    return rawPath
+      .flatMap((p) => {
+        try { return [JSON.parse(p) as { lat: number; lon: number }]; }
+        catch { return []; }
+      })
+      .reverse();
   }
 
   async saveCellMeta(
