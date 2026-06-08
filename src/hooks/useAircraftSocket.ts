@@ -8,12 +8,12 @@ import { useSettingsStore } from './useSettings';
 
 export function useAircraftSocket(): void {
   const socketRef = useRef<Socket | null>(null);
-  const { mergeAircraft, removeStale } = useAircraftStore();
+  const mergeAircraft = useAircraftStore((s) => s.mergeAircraft);
+  const removeStale = useAircraftStore((s) => s.removeStale);
   const setAirports = useAirportStore((s) => s.setAirports);
   const mergeMetar = useMetarStore((s) => s.mergeMetar);
   const { lat, lng, radiusKm } = useSettingsStore();
 
-  // Connect on mount, set up listener, cleanup on unmount
   useEffect(() => {
     const backendUrl = import.meta.env.VITE_BACKEND_URL;
     if (!backendUrl) {
@@ -43,7 +43,6 @@ export function useAircraftSocket(): void {
     };
   }, [mergeAircraft, removeStale, setAirports, mergeMetar]);
 
-  // Register location on every connect (initial + reconnect) and when settings change
   useEffect(() => {
     const socket = socketRef.current;
     if (!socket) return;
@@ -62,7 +61,6 @@ export function useAircraftSocket(): void {
     };
   }, [lat, lng, radiusKm]);
 
-  // Force reconnect when tab becomes visible after sleep/suspend
   useEffect(() => {
     const handleVisibility = () => {
       if (document.visibilityState === 'visible') {
