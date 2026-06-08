@@ -1,6 +1,6 @@
 // src/components/RadarView/RadarCanvas.ts
 import type { Aircraft, LabelCondition } from '../../types/aircraft';
-import type { Airport } from '../../../../shared/types';
+import type { Airport, MetarData } from '../../../../shared/types';
 import { aircraftColor, lightenHsl } from '../../lib/colorSystem';
 import { getAircraftFamily, SILHOUETTE_PATHS } from '../../lib/silhouettes';
 import { latLonToCanvas } from '../../lib/geoUtils';
@@ -48,6 +48,7 @@ export interface RadarDrawParams {
   labelConditions: LabelCondition[];
   airports: Airport[];
   zoomLevel: number;
+  metar?: Map<string, MetarData>;
 }
 
 const BG_COLOR = '#0a0b0f';
@@ -128,8 +129,65 @@ function drawCardinals({ ctx, width }: RadarDrawParams) {
   ctx.fillText('N', width / 2, 8);
 }
 
+const WIND_COLOR = 'rgba(255,255,255,0.6)';
+const MAX_ARROW_PX = 40;
+const CALM_KTS = 3;
+
+function drawWindArrow(ctx: CanvasRenderingContext2D, cx: number, cy: number, metar: MetarData): void {
+  const { windDir, windSpeed } = metar;
+  ctx.save();
+  ctx.strokeStyle = WIND_COLOR;
+  ctx.fillStyle = WIND_COLOR;
+  ctx.lineWidth = 1.5;
+
+  if (windSpeed < CALM_KTS) {
+    ctx.beginPath();
+    ctx.arc(cx, cy, 5, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.restore();
+    return;
+  }
+
+  if (windDir === null) {
+    ctx.setLineDash([3, 3]);
+    ctx.beginPath();
+    ctx.arc(cx, cy, 7, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.restore();
+    return;
+  }
+
+  const length = Math.min(MAX_ARROW_PX, (windSpeed / 60) * MAX_ARROW_PX + 8);
+  // windDir: degrees FROM which wind blows; arrow points toward that source
+  const angle = (windDir - 90) * (Math.PI / 180);
+  const tx = cx + Math.cos(angle) * length;
+  const ty = cy + Math.sin(angle) * length;
+
+  ctx.beginPath();
+  ctx.moveTo(cx, cy);
+  ctx.lineTo(tx, ty);
+  ctx.stroke();
+
+  // Arrowhead
+  const headLen = 6;
+  const headAngle = 0.4;
+  ctx.beginPath();
+  ctx.moveTo(tx, ty);
+  ctx.lineTo(tx - Math.cos(angle - headAngle) * headLen, ty - Math.sin(angle - headAngle) * headLen);
+  ctx.moveTo(tx, ty);
+  ctx.lineTo(tx - Math.cos(angle + headAngle) * headLen, ty - Math.sin(angle + headAngle) * headLen);
+  ctx.stroke();
+
+  ctx.font = '8px monospace';
+  ctx.textAlign = 'left';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(`${windSpeed}kt`, tx + 4, ty);
+
+  ctx.restore();
+}
+
 function drawAirports(params: RadarDrawParams) {
-  const { ctx, width, height, centerLat, centerLon, radiusKm, airports } = params;
+  const { ctx, width, height, centerLat, centerLon, radiusKm, airports, metar } = params;
   if (!airports.length) return;
 
   const base = '255,255,255';
@@ -150,6 +208,8 @@ function drawAirports(params: RadarDrawParams) {
       ctx.textBaseline = 'top';
       ctx.fillText(airport.iata || airport.icao, center.x + 5, center.y - 10);
       ctx.restore();
+      const metarData = metar?.get(airport.icao);
+      if (metarData) drawWindArrow(ctx, center.x, center.y, metarData);
       continue;
     }
 
@@ -202,6 +262,9 @@ function drawAirports(params: RadarDrawParams) {
       ctx.textBaseline = 'top';
       ctx.fillText(airport.iata || airport.icao, center.x + 5, center.y - 10);
     }
+
+    const metarData = metar?.get(airport.icao);
+    if (metarData) drawWindArrow(ctx, center.x, center.y, metarData);
   }
 }
 
