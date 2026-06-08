@@ -12,13 +12,12 @@ describe('useSettings', () => {
   it('initializes with DEFAULT_SETTINGS', () => {
     const { result } = renderHook(() => useSettingsStore());
     expect(result.current.lat).toBe(DEFAULT_SETTINGS.lat);
-    expect(result.current.theme).toBe('dark');
   });
 
   it('updates a single setting', () => {
     const { result } = renderHook(() => useSettingsStore());
-    act(() => result.current.update({ theme: 'light' }));
-    expect(result.current.theme).toBe('light');
+    act(() => result.current.update({ lat: 40.0 }));
+    expect(result.current.lat).toBe(40.0);
   });
 
   it('persists updated setting to localStorage', () => {

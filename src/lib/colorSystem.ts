@@ -47,11 +47,10 @@ export function getManufacturer(typeCode: string): string {
   return t.slice(0, 3);
 }
 
-export function aircraftColor(typeCode: string, theme: 'dark' | 'light'): string {
+export function aircraftColor(typeCode: string): string {
   const manufacturer = getManufacturer(typeCode);
   const hue = djb2(manufacturer) % 360;
-  const lightnessBase = theme === 'dark' ? 55 : 35;
-  const lightness = lightnessBase + (djb2(typeCode + 'L') % 25);
+  const lightness = 55 + (djb2(typeCode + 'L') % 25);
   const saturation = 90 + (djb2(typeCode + 'S') % 10);
   return `hsl(${hue}, ${saturation}%, ${lightness}%)`;
 }

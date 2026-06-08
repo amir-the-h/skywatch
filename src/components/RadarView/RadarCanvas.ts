@@ -29,6 +29,7 @@ export interface LabelComputeParams {
   labelConditions: LabelCondition[];
   panOffset: { x: number; y: number };
   zoomLevel: number;
+  airportPositions?: Array<{ x: number; y: number }>;
 }
 
 export interface RadarDrawParams {
@@ -42,7 +43,6 @@ export interface RadarDrawParams {
   aircraft: Aircraft[];
   hoveredHex: string | null;
   pinnedHexes: Set<string>;
-  theme: 'dark' | 'light';
   panOffset: { x: number; y: number };
   trailLength: number;
   labelConditions: LabelCondition[];
@@ -50,12 +50,13 @@ export interface RadarDrawParams {
   zoomLevel: number;
 }
 
+const BG_COLOR = '#0a0b0f';
+
 export function drawRadar(params: RadarDrawParams) {
-  const { ctx, width, height, theme, panOffset } = params;
+  const { ctx, width, height, panOffset } = params;
   ctx.clearRect(0, 0, width, height);
 
-  const bg = theme === 'dark' ? '#0a0b0f' : '#f0f0f0';
-  ctx.fillStyle = bg;
+  ctx.fillStyle = BG_COLOR;
   ctx.fillRect(0, 0, width, height);
 
   ctx.save();
@@ -69,13 +70,13 @@ export function drawRadar(params: RadarDrawParams) {
   drawCardinals(params);
 }
 
-function drawRings({ ctx, width, height, radiusKm, ringIntervals, theme, zoomLevel }: RadarDrawParams) {
+function drawRings({ ctx, width, height, radiusKm, ringIntervals, zoomLevel }: RadarDrawParams) {
   const cx = width / 2;
   const cy = height / 2;
   const scale = Math.min(width, height) / 2 / radiusKm;
   const originalRadiusKm = radiusKm * zoomLevel;
-  const ringColor = theme === 'dark' ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.1)';
-  const labelColor = theme === 'dark' ? 'rgba(255,255,255,0.3)' : 'rgba(0,0,0,0.4)';
+  const ringColor = 'rgba(255,255,255,0.18)';
+  const labelColor = 'rgba(255,255,255,0.45)';
 
   ctx.strokeStyle = ringColor;
   ctx.lineWidth = 1;
@@ -93,8 +94,8 @@ function drawRings({ ctx, width, height, radiusKm, ringIntervals, theme, zoomLev
   }
 }
 
-function drawGrid({ ctx, width, height, radiusKm, theme }: RadarDrawParams) {
-  const gridColor = theme === 'dark' ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.04)';
+function drawGrid({ ctx, width, height, radiusKm }: RadarDrawParams) {
+  const gridColor = 'rgba(255,255,255,0.07)';
   ctx.strokeStyle = gridColor;
   ctx.lineWidth = 1;
 
@@ -118,8 +119,8 @@ function drawGrid({ ctx, width, height, radiusKm, theme }: RadarDrawParams) {
   }
 }
 
-function drawCardinals({ ctx, width, theme }: RadarDrawParams) {
-  const color = theme === 'dark' ? 'rgba(255,255,255,0.35)' : 'rgba(0,0,0,0.4)';
+function drawCardinals({ ctx, width }: RadarDrawParams) {
+  const color = 'rgba(255,255,255,0.45)';
   ctx.fillStyle = color;
   ctx.font = 'bold 13px monospace';
   ctx.textAlign = 'center';
@@ -128,10 +129,10 @@ function drawCardinals({ ctx, width, theme }: RadarDrawParams) {
 }
 
 function drawAirports(params: RadarDrawParams) {
-  const { ctx, width, height, centerLat, centerLon, radiusKm, airports, theme } = params;
+  const { ctx, width, height, centerLat, centerLon, radiusKm, airports } = params;
   if (!airports.length) return;
 
-  const base = theme === 'dark' ? '255,255,255' : '0,0,0';
+  const base = '255,255,255';
   const scale = Math.min(width, height) / 2 / radiusKm;
 
   for (const airport of airports) {
@@ -195,7 +196,7 @@ function drawAirports(params: RadarDrawParams) {
 const AIRCRAFT_SIZE = 28;
 
 function drawAllAircraft(params: RadarDrawParams): Map<string, AircraftRenderData> {
-  const { ctx, width, height, centerLat, centerLon, radiusKm, aircraft, hoveredHex, pinnedHexes, theme, trailLength, panOffset, zoomLevel } = params;
+  const { ctx, width, height, centerLat, centerLon, radiusKm, aircraft, hoveredHex, pinnedHexes, trailLength, panOffset, zoomLevel } = params;
 
   const renderData = new Map<string, AircraftRenderData>();
   const iconScale = iconScaleForZoom(zoomLevel);
@@ -204,19 +205,18 @@ function drawAllAircraft(params: RadarDrawParams): Map<string, AircraftRenderDat
   const headingLineLength = scaledSize * 3;
   const cullPadding = scaledSize * 1.5;
 
+  type VisibleAc = { ac: typeof aircraft[0]; pos: { x: number; y: number }; color: string };
+  const visible: VisibleAc[] = [];
+
+  // First pass: compute positions and draw all trails
   for (const ac of aircraft) {
     const pos = latLonToCanvas(ac._renderLat, ac._renderLon, centerLat, centerLon, radiusKm, width, height);
     if (screenPosToCull(pos.x, pos.y, panOffset.x, panOffset.y, width, height, cullPadding)) continue;
 
-    const color = aircraftColor(ac.t, theme);
+    const color = aircraftColor(ac.t);
     renderData.set(ac.hex, { pos, color });
-    const family = getAircraftFamily(ac.t);
-    const pathStr = SILHOUETTE_PATHS[family];
-    const isPinned = pinnedHexes.has(ac.hex);
-    const isHovered = hoveredHex === ac.hex && !isPinned;
-    const isEmergency = (!!ac.emergency && ac.emergency !== 'none') || ac.squawk === '7700' || ac.squawk === '7600' || ac.squawk === '7500';
+    visible.push({ ac, pos, color });
 
-    // Trail
     const fullHistory = ac.pathHistory;
     const history = fullHistory && trailLength > 0 ? fullHistory.slice(-trailLength) : [];
     if (history.length >= 2) {
@@ -235,6 +235,15 @@ function drawAllAircraft(params: RadarDrawParams): Map<string, AircraftRenderDat
       ctx.stroke();
       ctx.restore();
     }
+  }
+
+  // Second pass: draw all silhouettes and heading lines on top of trails
+  for (const { ac, pos, color } of visible) {
+    const family = getAircraftFamily(ac.t);
+    const pathStr = SILHOUETTE_PATHS[family];
+    const isPinned = pinnedHexes.has(ac.hex);
+    const isHovered = hoveredHex === ac.hex && !isPinned;
+    const isEmergency = (!!ac.emergency && ac.emergency !== 'none') || ac.squawk === '7700' || ac.squawk === '7600' || ac.squawk === '7500';
 
     // Silhouette
     ctx.save();
@@ -244,8 +253,12 @@ function drawAllAircraft(params: RadarDrawParams): Map<string, AircraftRenderDat
 
     const p = new Path2D(pathStr);
     ctx.shadowColor = color;
-    ctx.shadowBlur = isEmergency ? 35 : isPinned ? 20 : isHovered ? 14 : 8;
-    ctx.lineWidth = isEmergency ? 6 : isPinned ? 2.5 : isHovered ? 3 : 2;
+    ctx.shadowBlur = isEmergency ? 35 : isPinned ? 20 : isHovered ? 14 : 12;
+    ctx.lineWidth = isEmergency ? 7 : isPinned ? 3 : isHovered ? 3.5 : 2.5;
+
+    // Fill with background color first to mask trail behind fuselage
+    ctx.fillStyle = BG_COLOR;
+    ctx.fill(p);
 
     if (isPinned) {
       ctx.globalAlpha = 0.55;
@@ -329,7 +342,7 @@ export function computeLabelPositions(
   renderData: Map<string, AircraftRenderData>,
   s: number,
 ): Map<string, LabelPlacement> {
-  const { aircraft, width, height, pinnedHexes, labelConditions, panOffset, zoomLevel } = params;
+  const { aircraft, width, height, pinnedHexes, labelConditions, panOffset, zoomLevel, airportPositions = [] } = params;
   const labelW = LABEL_W * s;
   const labelH = LABEL_H * s;
 
@@ -374,17 +387,13 @@ export function computeLabelPositions(
   type Committed = { lx: number; ly: number; hex: string };
   const committed: Committed[] = [];
 
+  // Exclusion radius around each aircraft icon (half-icon + a few pixels of breathing room)
+  const iconExclR = (AIRCRAFT_SIZE / 2 + 6) * s;
+  // Fixed exclusion radius around airport markers (they don't scale with zoom)
+  const AIRPORT_EXCL_R = 22;
+
   for (const ac of visible) {
     const { pos } = renderData.get(ac.hex)!;
-
-    if (visible.length === 1) {
-      // Fast path: single aircraft — skip scoring, go straight to preferred slot
-      const angle = -Math.PI / 4;
-      const lx = Math.max(minX, Math.min(pos.x + Math.cos(angle) * LABEL_OFFSET_NEAR * s - labelW / 2, maxX));
-      const ly = Math.max(minY, Math.min(pos.y + Math.sin(angle) * LABEL_OFFSET_NEAR * s - labelH / 2, maxY));
-      committed.push({ lx, ly, hex: ac.hex });
-      continue;
-    }
 
     let bestScore = Infinity;
     let bestLx = 0;
@@ -399,6 +408,24 @@ export function computeLabelPositions(
         let overlapScore = 0;
         for (const c of committed) {
           overlapScore += rectIntersectionArea(lx, ly, labelW, labelH, c.lx, c.ly, labelW, labelH);
+        }
+
+        // Penalty: label box overlapping any aircraft icon (own icon weighted heavier)
+        for (const [ohex, oRd] of renderData) {
+          const oPos = oRd.pos;
+          const dx = Math.max(lx - oPos.x, 0, oPos.x - (lx + labelW));
+          const dy = Math.max(ly - oPos.y, 0, oPos.y - (ly + labelH));
+          const dist = Math.hypot(dx, dy);
+          const weight = ohex === ac.hex ? 500 : 200;
+          overlapScore += Math.max(0, iconExclR - dist) * weight;
+        }
+
+        // Penalty: label box overlapping airport markers
+        for (const ap of airportPositions) {
+          const dx = Math.max(lx - ap.x, 0, ap.x - (lx + labelW));
+          const dy = Math.max(ly - ap.y, 0, ap.y - (ly + labelH));
+          const dist = Math.hypot(dx, dy);
+          overlapScore += Math.max(0, AIRPORT_EXCL_R - dist) * 200;
         }
 
         // Penalty: pixels outside canvas bounds (weight heavily to keep labels on screen)
@@ -508,16 +535,21 @@ export function computeLabelPositions(
 }
 
 function drawAircraftLabels(params: RadarDrawParams, renderData: Map<string, AircraftRenderData>) {
-  const { ctx, width, height, aircraft, theme, labelConditions, pinnedHexes, zoomLevel, panOffset } = params;
-  const textColor = theme === 'dark' ? '#e5e7eb' : '#1f2937';
+  const { ctx, width, height, aircraft, labelConditions, pinnedHexes, zoomLevel, panOffset,
+    centerLat, centerLon, radiusKm, airports } = params;
+  const textColor = '#e5e7eb';
   const s = iconScaleForZoom(zoomLevel);
   const labelW = LABEL_W * s;
   const labelH = LABEL_H * s;
   const pad = 7 * s;
   const r = 5 * s;
 
+  const airportPositions = airports.map(ap =>
+    latLonToCanvas(ap.lat, ap.lon, centerLat, centerLon, radiusKm, width, height)
+  );
+
   const placements = computeLabelPositions(
-    { width, height, aircraft, pinnedHexes, labelConditions, panOffset, zoomLevel },
+    { width, height, aircraft, pinnedHexes, labelConditions, panOffset, zoomLevel, airportPositions },
     renderData,
     s,
   );
@@ -551,7 +583,7 @@ function drawAircraftLabels(params: RadarDrawParams, renderData: Map<string, Air
     ctx.globalAlpha = opacity;
 
     // Background
-    ctx.fillStyle = theme === 'dark' ? 'rgba(10, 11, 15, 0.82)' : 'rgba(240, 242, 248, 0.92)';
+    ctx.fillStyle = 'rgba(10, 11, 15, 0.82)';
     ctx.beginPath();
     ctx.roundRect(lx, ly, labelW, labelH, r);
     ctx.fill();
