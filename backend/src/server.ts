@@ -74,6 +74,7 @@ async function registerSocket(
   const metar = await metarPoller.getMetarFor(icaos);
   io.to(socketId).emit('airports', { airports, metar });
   metarPoller.addSocket(socketId, icaos);
+  if (icaos.length > 0) void metarPoller.pollNow();
 }
 
 async function unregisterSocket(socketId: string): Promise<void> {
