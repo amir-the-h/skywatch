@@ -16,7 +16,7 @@ const mockClient = {
   lRange: vi.fn(),
   hGetAll: vi.fn(),
   del: vi.fn(),
-  pipeline: vi.fn(() => ({
+  multi: vi.fn(() => ({
     set: vi.fn().mockReturnThis(),
     exec: vi.fn().mockResolvedValue([]),
   })),
@@ -47,8 +47,8 @@ describe('RedisStore — airport methods', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
-    // Re-stub pipeline after clearAllMocks resets it
-    client.pipeline.mockReturnValue({
+    // Re-stub multi after clearAllMocks resets it
+    client.multi.mockReturnValue({
       set: vi.fn().mockReturnThis(),
       exec: vi.fn().mockResolvedValue([]),
     });
@@ -58,7 +58,7 @@ describe('RedisStore — airport methods', () => {
   it('saveAllAirports pipelines a set call per airport', async () => {
     const airports = [makeAirport('KLAX'), makeAirport('KORD', 41.97, -87.9)];
     await store.saveAllAirports(airports);
-    expect(client.pipeline).toHaveBeenCalled();
+    expect(client.multi).toHaveBeenCalled();
   });
 
   it('saveAirportIcaos calls sAdd with all icaos', async () => {

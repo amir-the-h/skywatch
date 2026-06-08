@@ -155,7 +155,7 @@ export class RedisStore {
 
   async saveAllAirports(airports: Airport[]): Promise<void> {
     if (airports.length === 0) return;
-    const pipe = this.client.pipeline();
+    const pipe = this.client.multi();
     for (const ap of airports) {
       pipe.set(`airport:${ap.icao}`, JSON.stringify(ap));
     }
