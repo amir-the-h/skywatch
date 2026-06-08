@@ -30,26 +30,37 @@ export function useAircraftSocket(): void {
     };
   }, [mergeAircraft, removeStale]);
 
-  // Register location on connect and when settings change
+  // Register location on every connect (initial + reconnect) and when settings change
   useEffect(() => {
     const socket = socketRef.current;
     if (!socket) return;
 
+    const registerLocation = () => {
+      socket.emit('register_location', { lat, lon: lng, radiusKm });
+    };
+
     if (socket.connected) {
-      socket.emit('register_location', {
-        lat,
-        lon: lng,
-        radiusKm,
-      });
-    } else {
-      // If socket not yet connected, register once it connects
-      socket.once('connect', () => {
-        socket.emit('register_location', {
-          lat,
-          lon: lng,
-          radiusKm,
-        });
-      });
+      registerLocation();
     }
+
+    socket.on('connect', registerLocation);
+    return () => {
+      socket.off('connect', registerLocation);
+    };
   }, [lat, lng, radiusKm]);
+
+  // Force reconnect when tab becomes visible after sleep/suspend
+  useEffect(() => {
+    const handleVisibility = () => {
+      if (document.visibilityState === 'visible') {
+        const socket = socketRef.current;
+        if (socket && !socket.connected) {
+          socket.connect();
+        }
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibility);
+    return () => document.removeEventListener('visibilitychange', handleVisibility);
+  }, []);
 }
