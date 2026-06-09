@@ -79,3 +79,16 @@ export interface AirportsPayload {
 export type MetarUpdatePayload = Record<string, MetarData>
 
 export type CenterWeatherPayload = PointWeather | null
+
+export interface EmergencyAircraft {
+  hex: string;
+  flight: string;
+  r: string;
+  squawk?: string;
+  emergency?: string;
+  lat: number;
+  lon: number;
+  alt_baro: number;
+  gs: number;
+  track: number;
+}
