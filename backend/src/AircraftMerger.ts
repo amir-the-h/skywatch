@@ -13,7 +13,10 @@ export function mergeAircraftSources(
   const byHex = new Map<string, Array<{ priority: number; ac: NormalizedAircraft }>>();
 
   for (const { priority, aircraft } of sources) {
+    const seenInSource = new Set<string>();
     for (const ac of aircraft) {
+      if (seenInSource.has(ac.hex)) continue;
+      seenInSource.add(ac.hex);
       const entry = byHex.get(ac.hex);
       if (entry) {
         entry.push({ priority, ac });
