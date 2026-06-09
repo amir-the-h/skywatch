@@ -8,6 +8,7 @@ import { snapToGrid, cellKey } from './GridEngine';
 import { pollCell } from './CellPoller';
 import { loadAirports } from './AirportLoader';
 import { MetarPoller } from './MetarPoller';
+import { EmergencyPoller } from './EmergencyPoller';
 import { fetchCenterWeather } from './CenterWeatherFetcher';
 
 const PORT = parseInt(process.env.PORT ?? '3001');
@@ -39,6 +40,7 @@ const cellMap = new Map<
 >();
 
 const metarPoller = new MetarPoller(store, io);
+const emergencyPoller = new EmergencyPoller(store, io);
 
 const queue = new FetchQueue(async (ck: string) => {
   const cell = cellMap.get(ck);
@@ -77,6 +79,8 @@ async function registerSocket(
     fetchCenterWeather(userLat, userLon),
   ]);
   io.to(socketId).emit('airports', { airports, metar, centerWeather });
+  const emergencySnapshot = await emergencyPoller.getSnapshot();
+  io.to(socketId).emit('emergency_update', emergencySnapshot);
   metarPoller.addSocket(socketId, icaos, userLat, userLon);
   void metarPoller.pollNow();
 }
@@ -153,6 +157,7 @@ async function main() {
   await store.connect();
   await loadAirports(store);
   metarPoller.start();
+  emergencyPoller.start();
   httpServer.listen(PORT, () => {
     console.log(`[server] listening on port ${PORT}`);
     console.log(`[server] redis: ${REDIS_URL}`);
