@@ -1,5 +1,6 @@
 // src/components/FlightBubble/FlightBubble.tsx
 import { useState } from 'react';
+import { useShallow } from 'zustand/shallow';
 import type { Aircraft } from '../../types/aircraft';
 import { useAircraftStore } from '../../store/aircraftStore';
 import { useSettingsStore } from '../../hooks/useSettings';
@@ -33,9 +34,9 @@ export function FlightBubble({ aircraft, color }: Props) {
   const followHex = useAircraftStore((s) => s.followHex);
   const setFollowHex = useAircraftStore((s) => s.setFollowHex);
   const [autopilotOpen, setAutopilotOpen] = useState(false);
-  const observerElevationFt = useSettingsStore((s) => s.observerElevationFt);
-  const observerLat = useSettingsStore((s) => s.lat);
-  const observerLng = useSettingsStore((s) => s.lng);
+  const { observerElevationFt, observerLat, observerLng } = useSettingsStore(
+    useShallow((s) => ({ observerElevationFt: s.observerElevationFt, observerLat: s.lat, observerLng: s.lng }))
+  );
 
   const lookDir =
     observerElevationFt !== undefined
@@ -113,7 +114,7 @@ export function FlightBubble({ aircraft, color }: Props) {
         </div>
         {lookDir && (
           <div className="bubble-row">
-            ↗ {lookDir.bearing}° {lookDir.cardinal} · {lookDir.elev}° {lookDir.elevLabel}
+            → {lookDir.bearing}° {lookDir.cardinal} · {lookDir.elev}° {lookDir.elevLabel}
           </div>
         )}
         {aircraft.squawk && (
