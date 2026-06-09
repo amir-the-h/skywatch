@@ -5,10 +5,12 @@ import { useAircraftSocket } from './hooks/useAircraftSocket';
 import { useVersionPoller } from './hooks/useVersionPoller';
 import { useIdleCursor } from './hooks/useIdleCursor';
 import { useAircraftStore } from './store/aircraftStore';
+import { useEmergencyStore } from './store/emergencyStore';
 import { MapView } from './components/MapView/MapView';
 import { RadarView } from './components/RadarView/RadarView';
 import { SettingsModal } from './components/SettingsPanel/SettingsModal';
 import { FilterDrawer } from './components/FilterDrawer/FilterDrawer';
+import { EmergencyDrawer } from './components/EmergencyDrawer/EmergencyDrawer';
 
 function StatusChip() {
   const lastUpdated = useAircraftStore((s) => s.lastUpdated);
@@ -31,9 +33,23 @@ function StatusChip() {
   );
 }
 
+function EmergencyChip({ onClick }: { onClick: () => void }) {
+  const count = useEmergencyStore((s) => s.aircraft.length);
+  return (
+    <button
+      className={`chip ${count > 0 ? 'emergency-active' : 'emergency-quiet'}`}
+      onClick={onClick}
+      title="Emergency aircraft worldwide"
+    >
+      {count > 0 ? `EMER (${count})` : 'EMER'}
+    </button>
+  );
+}
+
 export default function App() {
   const settings = useSettingsStore();
   const [showSettings, setShowSettings] = useState(false);
+  const [showEmergency, setShowEmergency] = useState(false);
 
   useEffect(() => {
     document.body.className = 'theme-dark';
@@ -85,6 +101,7 @@ export default function App() {
         </div>
 
         <div className="hud-topright">
+          <EmergencyChip onClick={() => setShowEmergency(true)} />
           <button
             className="icon-btn"
             onClick={() => setShowSettings(true)}
@@ -102,6 +119,7 @@ export default function App() {
       <FilterDrawer />
 
       {showSettings && <SettingsModal onClose={() => setShowSettings(false)} />}
+      {showEmergency && <EmergencyDrawer onClose={() => setShowEmergency(false)} />}
     </>
   );
 }
