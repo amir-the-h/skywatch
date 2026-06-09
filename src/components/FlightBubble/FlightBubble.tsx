@@ -28,6 +28,8 @@ interface Props {
 
 export function FlightBubble({ aircraft, color }: Props) {
   const unpin = useAircraftStore((s) => s.unpin);
+  const followHex = useAircraftStore((s) => s.followHex);
+  const setFollowHex = useAircraftStore((s) => s.setFollowHex);
   const [autopilotOpen, setAutopilotOpen] = useState(false);
   const emergencyLabel = getEmergencyLabel(aircraft);
   const hasRoute = !!(aircraft.orig_iata || aircraft.dest_iata);
@@ -46,7 +48,14 @@ export function FlightBubble({ aircraft, color }: Props) {
           <strong style={{ color }}>{aircraft.flight || aircraft.hex}</strong>
           {aircraft.r && <span className="reg"> · {aircraft.r}</span>}
         </div>
-        <button className="icon-btn" onClick={() => unpin(aircraft.hex)} aria-label="Close">✕</button>
+        <button
+          className="icon-btn"
+          onClick={() => {
+            unpin(aircraft.hex);
+            if (followHex === aircraft.hex) setFollowHex(null);
+          }}
+          aria-label="Close"
+        >✕</button>
       </div>
 
       <div className="bubble-type">
