@@ -32,10 +32,14 @@ export function SettingsModal({ onClose }: Props) {
     setGeoStatus('loading');
     navigator.geolocation.getCurrentPosition(
       (pos) => {
-        settings.update({
+        const patch: Parameters<typeof settings.update>[0] = {
           lat: parseFloat(pos.coords.latitude.toFixed(4)),
           lng: parseFloat(pos.coords.longitude.toFixed(4)),
-        });
+        };
+        if (pos.coords.altitude !== null) {
+          patch.observerElevationFt = Math.round(pos.coords.altitude * 3.28084);
+        }
+        settings.update(patch);
         setGeoStatus('idle');
       },
       () => {
@@ -81,6 +85,21 @@ export function SettingsModal({ onClose }: Props) {
               step="0.0001"
               value={settings.lng}
               onChange={(e) => { const v = parseFloat(e.target.value); if (!isNaN(v)) settings.update({ lng: v }); }}
+            />
+          </label>
+
+          <label>
+            Your elevation (ft)
+            <input
+              type="number"
+              min={-1500}
+              max={30000}
+              value={settings.observerElevationFt ?? ''}
+              onChange={(e) => {
+                const v = parseInt(e.target.value);
+                settings.update({ observerElevationFt: isNaN(v) ? undefined : v });
+              }}
+              placeholder="e.g. 150"
             />
           </label>
 
