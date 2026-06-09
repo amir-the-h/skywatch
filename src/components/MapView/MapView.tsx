@@ -14,6 +14,30 @@ import { matchesFilter } from '../../lib/aircraftFilter';
 import { aircraftColor } from '../../lib/colorSystem';
 import { useEmergencyStore } from '../../store/emergencyStore';
 import type { EmergencyAircraft } from '../../../../shared/types';
+import type { Aircraft } from '../../types/aircraft';
+
+function emergencyToAircraft(em: EmergencyAircraft): Aircraft {
+  return {
+    hex: em.hex,
+    flight: em.flight,
+    r: em.r,
+    t: '',
+    lat: em.lat,
+    lon: em.lon,
+    alt_baro: em.alt_baro,
+    gs: em.gs,
+    track: em.track,
+    baro_rate: 0,
+    squawk: em.squawk,
+    emergency: em.emergency,
+    seen: 0,
+    phase: 'cruise',
+    pathHistory: [],
+    _renderLat: em.lat,
+    _renderLon: em.lon,
+    _lastSeen: Date.now(),
+  };
+}
 
 const OSM_TILES = 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png';
 const OSM_ATTR = '&copy; <a href="https://openstreetmap.org">OpenStreetMap</a>';
@@ -85,6 +109,8 @@ export function MapView() {
   const aircraftMap = useAircraftStore((s) => s.aircraft);
   const pinnedHexes = useAircraftStore((s) => s.pinnedHexes);
   const hoveredHex = useAircraftStore((s) => s.hoveredHex);
+  const followHex = useAircraftStore((s) => s.followHex);
+  const emergencyAircraft = useEmergencyStore((s) => s.aircraft);
   const filters = useFilterStore();
 
   const [renderTick, setRenderTick] = useState(0);
@@ -105,7 +131,13 @@ export function MapView() {
   );
   void renderTick;
 
-  const visibleAircraft = aircraft.filter((ac) => matchesFilter(ac, filters));
+  // Emergency aircraft pinned/followed but outside local radius — inject as synthetic markers
+  const trackedHexes = new Set([...pinnedHexes, ...(followHex ? [followHex] : [])]);
+  const emergencyOnly = emergencyAircraft
+    .filter((em) => trackedHexes.has(em.hex) && !aircraftMap.has(em.hex))
+    .map(emergencyToAircraft);
+
+  const visibleAircraft = [...aircraft.filter((ac) => matchesFilter(ac, filters)), ...emergencyOnly];
   const hoveredAircraft = hoveredHex ? aircraftMap.get(hoveredHex) : null;
 
   return (
@@ -139,8 +171,11 @@ export function MapView() {
 
       <div className="bubbles-container">
         {[...pinnedHexes].map((hex) => {
-          const ac = aircraftMap.get(hex);
-          if (!ac || !matchesFilter(ac, filters)) return null;
+          const ac: Aircraft | undefined =
+            aircraftMap.get(hex) ??
+            emergencyOnly.find((e) => e.hex === hex);
+          if (!ac) return null;
+          if (aircraftMap.has(hex) && !matchesFilter(ac, filters)) return null;
           const color = aircraftColor(ac.t);
           return <FlightBubble key={hex} aircraft={ac} color={color} />;
         })}
