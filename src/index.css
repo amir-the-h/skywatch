@@ -835,3 +835,71 @@ body.theme-light {
     animation: slideUp 0.25s ease-out;
   }
 }
+
+/* ─── Emergency chip ─── */
+.chip.emergency-active {
+  background: rgba(239, 68, 68, 0.75);
+  color: #fff;
+  border-color: rgba(239, 68, 68, 0.9);
+  font-weight: 700;
+}
+
+.chip.emergency-quiet {
+  opacity: 0.45;
+}
+
+/* ─── Emergency drawer ─── */
+.emergency-empty {
+  color: var(--text-muted);
+  text-align: center;
+  padding: 24px 0;
+  font-size: 14px;
+}
+
+.emergency-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 10px 12px;
+  background: var(--chip-bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  cursor: pointer;
+  margin-bottom: 8px;
+  text-align: left;
+  color: var(--text);
+  font-size: 13px;
+  transition: background 0.15s;
+}
+
+.emergency-row:hover {
+  background: var(--chip-active);
+}
+
+.emergency-badge {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  padding: 2px 6px;
+  border-radius: 4px;
+  color: #fff;
+  flex-shrink: 0;
+}
+
+.emergency-callsign {
+  font-weight: 600;
+  flex-shrink: 0;
+}
+
+.emergency-reg {
+  color: var(--text-muted);
+  flex-shrink: 0;
+}
+
+.emergency-stats {
+  color: var(--text-muted);
+  margin-left: auto;
+  font-size: 12px;
+  white-space: nowrap;
+}
