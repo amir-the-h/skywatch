@@ -36,6 +36,7 @@ export interface Settings {
   labelConditions: LabelCondition[];
   showAirports: boolean;
   airportTypes: ('large_airport' | 'medium_airport' | 'small_airport')[];
+  observerElevationFt?: number;
 }
 
 export const DEFAULT_SETTINGS: Settings = {
