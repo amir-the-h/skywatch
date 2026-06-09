@@ -8,9 +8,9 @@ type RedisClient = ReturnType<typeof createClient>;
 function serializeAircraft(ac: Omit<BackendAircraft, 'pathHistory'>): Record<string, string> {
   return {
     hex: ac.hex,
-    flight: ac.flight,
-    r: ac.r,
-    t: ac.t,
+    ...(ac.flight ? { flight: ac.flight } : {}),
+    ...(ac.r ? { r: ac.r } : {}),
+    ...(ac.t ? { t: ac.t } : {}),
     ...(ac.desc ? { desc: ac.desc } : {}),
     lat: String(ac.lat),
     lon: String(ac.lon),
