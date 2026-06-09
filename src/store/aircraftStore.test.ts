@@ -19,6 +19,7 @@ beforeEach(() => {
     pinnedHexes: new Set(),
     hoveredHex: null,
     lastUpdated: null,
+    followHex: null,
   });
 });
 
@@ -50,5 +51,32 @@ describe('pathHistory', () => {
     useAircraftStore.getState().mergeAircraft([makeAc('ABC123', 41, 28, [{ lat: 41, lon: 28 }])]);
     useAircraftStore.getState().removeStale(new Set());
     expect(useAircraftStore.getState().aircraft.has('ABC123')).toBe(false);
+  });
+});
+
+describe('followHex', () => {
+  it('defaults to null', () => {
+    expect(useAircraftStore.getState().followHex).toBeNull();
+  });
+
+  it('setFollowHex sets the hex', () => {
+    useAircraftStore.getState().setFollowHex('ABC123');
+    expect(useAircraftStore.getState().followHex).toBe('ABC123');
+  });
+
+  it('setFollowHex clears with null', () => {
+    useAircraftStore.getState().setFollowHex('ABC123');
+    useAircraftStore.getState().setFollowHex(null);
+    expect(useAircraftStore.getState().followHex).toBeNull();
+  });
+
+  it('removeStale preserves pinnedHex for followed aircraft even when not in active set', () => {
+    useAircraftStore.setState({
+      aircraft: new Map([['ABC123', makeAc('ABC123', 41, 28)]]),
+      pinnedHexes: new Set(['ABC123']),
+      followHex: 'ABC123',
+    });
+    useAircraftStore.getState().removeStale(new Set()); // empty active set
+    expect(useAircraftStore.getState().pinnedHexes.has('ABC123')).toBe(true);
   });
 });
