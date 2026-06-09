@@ -1,10 +1,11 @@
 import { useEffect, useRef } from 'react';
 import { io, Socket } from 'socket.io-client';
-import type { BackendAircraft, AirportsPayload, MetarUpdatePayload, CenterWeatherPayload } from '../../shared/types';
+import type { BackendAircraft, AirportsPayload, MetarUpdatePayload, CenterWeatherPayload, EmergencyAircraft } from '../../shared/types';
 import { useAircraftStore } from '../store/aircraftStore';
 import { useAirportStore } from '../store/airportStore';
 import { useMetarStore } from '../store/metarStore';
 import { useCenterWeatherStore } from '../store/centerWeatherStore';
+import { useEmergencyStore } from '../store/emergencyStore';
 import { useSettingsStore } from './useSettings';
 
 export function useAircraftSocket(): void {
@@ -14,6 +15,7 @@ export function useAircraftSocket(): void {
   const setAirports = useAirportStore((s) => s.setAirports);
   const mergeMetar = useMetarStore((s) => s.mergeMetar);
   const setCenterWeather = useCenterWeatherStore((s) => s.setCenterWeather);
+  const setEmergency = useEmergencyStore((s) => s.setEmergency);
   const { lat, lng, radiusKm } = useSettingsStore();
 
   useEffect(() => {
@@ -45,10 +47,14 @@ export function useAircraftSocket(): void {
       setCenterWeather(data);
     });
 
+    socket.on('emergency_update', (data: EmergencyAircraft[]) => {
+      setEmergency(data);
+    });
+
     return () => {
       socket.disconnect();
     };
-  }, [mergeAircraft, removeStale, setAirports, mergeMetar, setCenterWeather]);
+  }, [mergeAircraft, removeStale, setAirports, mergeMetar, setCenterWeather, setEmergency]);
 
   useEffect(() => {
     const socket = socketRef.current;
