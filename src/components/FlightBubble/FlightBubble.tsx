@@ -41,8 +41,8 @@ export function FlightBubble({ aircraft, color }: Props) {
   const lookDir =
     observerElevationFt !== undefined
       ? (() => {
-          const distFt = haversineDistanceFt(observerLat, observerLng, aircraft.lat, aircraft.lon);
-          const bearing = bearingDeg(observerLat, observerLng, aircraft.lat, aircraft.lon);
+          const distFt = haversineDistanceFt(observerLat, observerLng, aircraft._renderLat, aircraft._renderLon);
+          const bearing = bearingDeg(observerLat, observerLng, aircraft._renderLat, aircraft._renderLon);
           const elev = elevationAngleDeg(observerElevationFt, aircraft.alt_baro, distFt);
           return {
             bearing: String(Math.round(bearing)).padStart(3, '0'),

@@ -89,7 +89,7 @@ export function SettingsModal({ onClose }: Props) {
           </label>
 
           <label>
-            Your elevation (ft)
+            Your elevation (ft, MSL)
             <input
               type="number"
               min={-1500}
