@@ -10,18 +10,18 @@ const rawSources =
 
 const EMERGENCY_POLL_INTERVAL_MS = parseInt(process.env.EMERGENCY_POLL_INTERVAL_MS ?? '10000');
 
+// 'https://api.airplanes.live/v2/point' → 'https://api.airplanes.live/v2'
+const SQUAWK_BASES: string[] = rawSources
+  .split(',')
+  .map((url) => url.trim().replace(/\/[^/]+$/, ''));
+
 export class EmergencyPoller {
-  private squawkBase: string;
   private timer: ReturnType<typeof setInterval> | null = null;
 
   constructor(
     private store: RedisStore,
     private io: Server,
-  ) {
-    // 'https://api.airplanes.live/v2/point' → 'https://api.airplanes.live/v2'
-    const sourceUrl = rawSources.split(',')[0].trim();
-    this.squawkBase = sourceUrl.replace(/\/[^/]+$/, '');
-  }
+  ) {}
 
   start(): void {
     void this.pollNow();
@@ -38,15 +38,15 @@ export class EmergencyPoller {
   }
 
   async pollNow(): Promise<void> {
-    const [s7500, s7600, s7700] = await Promise.all([
-      this.fetchSquawk('7500'),
-      this.fetchSquawk('7600'),
-      this.fetchSquawk('7700'),
-    ]);
+    const results = await Promise.all(
+      SQUAWK_BASES.flatMap((base) =>
+        ['7500', '7600', '7700'].map((code) => this.fetchSquawk(base, code)),
+      ),
+    );
 
     const seen = new Set<string>();
     const merged: EmergencyAircraft[] = [];
-    for (const ac of [...s7500, ...s7600, ...s7700]) {
+    for (const ac of results.flat()) {
       if (seen.has(ac.hex)) continue;
       seen.add(ac.hex);
       merged.push(ac);
@@ -57,11 +57,11 @@ export class EmergencyPoller {
     this.io.emit('emergency_update', merged);
   }
 
-  private async fetchSquawk(code: string): Promise<EmergencyAircraft[]> {
+  private async fetchSquawk(base: string, code: string): Promise<EmergencyAircraft[]> {
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), 5000);
     try {
-      const res = await fetch(`${this.squawkBase}/squawk/${code}`, {
+      const res = await fetch(`${base}/squawk/${code}`, {
         signal: controller.signal,
         headers: {
           'User-Agent':
@@ -69,7 +69,7 @@ export class EmergencyPoller {
         },
       });
       if (!res.ok) {
-        console.error(`[emergency] squawk=${code} HTTP ${res.status}`);
+        console.error(`[emergency] ${base} squawk=${code} HTTP ${res.status}`);
         return [];
       }
       const data = (await res.json()) as { ac?: unknown[] };
@@ -99,7 +99,7 @@ export class EmergencyPoller {
       return result;
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
-      console.error(`[emergency] squawk=${code} error: ${msg}`);
+      console.error(`[emergency] ${base} squawk=${code} error: ${msg}`);
       return [];
     } finally {
       clearTimeout(timer);
