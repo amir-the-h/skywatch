@@ -1,6 +1,6 @@
 // backend/src/RedisStore.ts
 import { createClient } from 'redis';
-import type { Airport, BackendAircraft, MetarData } from '../../shared/types';
+import type { Airport, BackendAircraft, MetarData, EmergencyAircraft } from '../../shared/types';
 import { cellKey } from './GridEngine';
 
 type RedisClient = ReturnType<typeof createClient>;
@@ -215,5 +215,15 @@ export class RedisStore {
       try { result[icaos[i]] = JSON.parse(v as string); } catch { /* skip */ }
     }
     return result;
+  }
+
+  async saveEmergencySnapshot(aircraft: EmergencyAircraft[]): Promise<void> {
+    await this.client.set('emergency:snapshot', JSON.stringify(aircraft), { EX: 90 });
+  }
+
+  async getEmergencySnapshot(): Promise<EmergencyAircraft[]> {
+    const raw = await this.client.get('emergency:snapshot');
+    if (!raw) return [];
+    return JSON.parse(raw) as EmergencyAircraft[];
   }
 }
