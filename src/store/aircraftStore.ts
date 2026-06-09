@@ -8,12 +8,14 @@ interface AircraftStore {
   pinnedHexes: Set<string>;
   hoveredHex: string | null;
   lastUpdated: number | null;
+  followHex: string | null;
 
   mergeAircraft: (incoming: BackendAircraft[], fetchedAt?: number) => void;
   removeStale: (hexes: Set<string>) => void;
   pin: (hex: string) => void;
   unpin: (hex: string) => void;
   setHovered: (hex: string | null) => void;
+  setFollowHex: (hex: string | null) => void;
 }
 
 export const useAircraftStore = create<AircraftStore>((set) => ({
@@ -21,6 +23,7 @@ export const useAircraftStore = create<AircraftStore>((set) => ({
   pinnedHexes: new Set(),
   hoveredHex: null,
   lastUpdated: null,
+  followHex: null,
 
   mergeAircraft: (incoming, fetchedAt = Date.now()) =>
     set((state) => {
@@ -45,7 +48,9 @@ export const useAircraftStore = create<AircraftStore>((set) => ({
           next.delete(hex);
         }
       }
-      const newPinned = new Set([...state.pinnedHexes].filter((h) => next.has(h)));
+      const newPinned = new Set(
+        [...state.pinnedHexes].filter((h) => next.has(h) || h === state.followHex)
+      );
       return { aircraft: next, pinnedHexes: newPinned };
     }),
 
@@ -60,4 +65,6 @@ export const useAircraftStore = create<AircraftStore>((set) => ({
     }),
 
   setHovered: (hex) => set({ hoveredHex: hex }),
+
+  setFollowHex: (hex) => set({ followHex: hex }),
 }));
