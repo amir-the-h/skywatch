@@ -99,8 +99,8 @@ async function fetchSource(
         typeof (raw as Record<string, unknown>).alt_baro === 'number'
           ? ((raw as Record<string, unknown>).alt_baro as number)
           : 0,
-        (((raw as Record<string, unknown>).gs as number) ?? 0),
-        (((raw as Record<string, unknown>).baro_rate as number) ?? 0)
+        ((raw as Record<string, unknown>).gs as number) ?? 0,
+        ((raw as Record<string, unknown>).baro_rate as number) ?? 0
       );
       const normalized = normalizeRaw(raw, phase);
       if (normalized) aircraft.push(normalized);
@@ -136,6 +136,7 @@ export async function pollCell(
 
   const sourceResults: Array<{ priority: number; aircraft: NormalizedAircraft[] }> = [];
   for (const result of settled) {
+    // fetchSource never rejects — defensive guard if the inner catch is ever removed
     if (result.status === 'rejected') {
       console.error(`[poll] src error: ${result.reason}`);
     } else {
