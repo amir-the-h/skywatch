@@ -12,6 +12,8 @@ import { interpolatePosition } from '../../lib/interpolate';
 import { useFilterStore } from '../../store/filterStore';
 import { matchesFilter } from '../../lib/aircraftFilter';
 import { aircraftColor } from '../../lib/colorSystem';
+import { useEmergencyStore } from '../../store/emergencyStore';
+import type { EmergencyAircraft } from '../../../../shared/types';
 
 const OSM_TILES = 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png';
 const OSM_ATTR = '&copy; <a href="https://openstreetmap.org">OpenStreetMap</a>';
@@ -19,11 +21,62 @@ const SAT_TILES =
   'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}';
 const SAT_ATTR = '&copy; Esri';
 
+function MapFollower() {
+  const map = useMap();
+  const followHex = useAircraftStore((s) => s.followHex);
+  const setFollowHex = useAircraftStore((s) => s.setFollowHex);
+  const aircraftMap = useAircraftStore((s) => s.aircraft);
+  const emergencyAircraft = useEmergencyStore((s) => s.aircraft);
+
+  // Refs so the interval callback always reads current values without re-creating the interval
+  const followHexRef = useRef<string | null>(followHex);
+  const aircraftMapRef = useRef(aircraftMap);
+  const emergencyRef = useRef<EmergencyAircraft[]>(emergencyAircraft);
+  followHexRef.current = followHex;
+  aircraftMapRef.current = aircraftMap;
+  emergencyRef.current = emergencyAircraft;
+
+  useEffect(() => {
+    const id = setInterval(() => {
+      const hex = followHexRef.current;
+      if (!hex) return;
+
+      const ac = aircraftMapRef.current.get(hex);
+      let lat: number | undefined;
+      let lon: number | undefined;
+
+      if (ac) {
+        lat = ac._renderLat;
+        lon = ac._renderLon;
+      } else {
+        const emAc = emergencyRef.current.find((a) => a.hex === hex);
+        lat = emAc?.lat;
+        lon = emAc?.lon;
+      }
+
+      if (lat !== undefined && lon !== undefined) {
+        map.panTo([lat, lon], { animate: true, duration: 0.5 });
+      }
+    }, 1000);
+    return () => clearInterval(id);
+  }, [map]);
+
+  useEffect(() => {
+    const onDragStart = () => setFollowHex(null);
+    map.on('dragstart', onDragStart);
+    return () => { map.off('dragstart', onDragStart); };
+  }, [map, setFollowHex]);
+
+  return null;
+}
+
 function MapRecenter({ lat, lng }: { lat: number; lng: number }) {
   const map = useMap();
+  const followHex = useAircraftStore((s) => s.followHex);
   useEffect(() => {
+    if (followHex) return;
     map.setView([lat, lng]);
-  }, [lat, lng, map]);
+  }, [lat, lng, map, followHex]);
   return null;
 }
 
@@ -67,6 +120,7 @@ export function MapView() {
         zoomControl={false}
       >
         <MapRecenter lat={lat} lng={lng} />
+        <MapFollower />
         <TileLayer
           url={tileSource === 'osm' ? OSM_TILES : SAT_TILES}
           attribution={tileSource === 'osm' ? OSM_ATTR : SAT_ATTR}
