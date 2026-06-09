@@ -2,6 +2,8 @@
 import { useState } from 'react';
 import type { Aircraft } from '../../types/aircraft';
 import { useAircraftStore } from '../../store/aircraftStore';
+import { useSettingsStore } from '../../hooks/useSettings';
+import { haversineDistanceFt, bearingDeg, cardinalDir, elevationAngleDeg } from '../../lib/lookAngles';
 
 const EMERGENCY_LABELS: Record<string, string> = {
   '7700': 'General Emergency',
@@ -31,6 +33,25 @@ export function FlightBubble({ aircraft, color }: Props) {
   const followHex = useAircraftStore((s) => s.followHex);
   const setFollowHex = useAircraftStore((s) => s.setFollowHex);
   const [autopilotOpen, setAutopilotOpen] = useState(false);
+  const observerElevationFt = useSettingsStore((s) => s.observerElevationFt);
+  const observerLat = useSettingsStore((s) => s.lat);
+  const observerLng = useSettingsStore((s) => s.lng);
+
+  const lookDir =
+    observerElevationFt !== undefined
+      ? (() => {
+          const distFt = haversineDistanceFt(observerLat, observerLng, aircraft.lat, aircraft.lon);
+          const bearing = bearingDeg(observerLat, observerLng, aircraft.lat, aircraft.lon);
+          const elev = elevationAngleDeg(observerElevationFt, aircraft.alt_baro, distFt);
+          return {
+            bearing: String(Math.round(bearing)).padStart(3, '0'),
+            cardinal: cardinalDir(bearing),
+            elev: elev.toFixed(1),
+            elevLabel: elev >= 0 ? 'up' : 'down',
+          };
+        })()
+      : null;
+
   const emergencyLabel = getEmergencyLabel(aircraft);
   const hasRoute = !!(aircraft.orig_iata || aircraft.dest_iata);
 
@@ -90,6 +111,11 @@ export function FlightBubble({ aircraft, color }: Props) {
           {Math.round(aircraft.gs)} kts · {Math.round(aircraft.track)}°
           {aircraft.mach != null && ` · M${aircraft.mach.toFixed(2)}`}
         </div>
+        {lookDir && (
+          <div className="bubble-row">
+            ↗ {lookDir.bearing}° {lookDir.cardinal} · {lookDir.elev}° {lookDir.elevLabel}
+          </div>
+        )}
         {aircraft.squawk && (
           <div className="bubble-row">Squawk {aircraft.squawk}</div>
         )}
