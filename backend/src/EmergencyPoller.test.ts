@@ -54,30 +54,28 @@ describe('EmergencyPoller', () => {
     expect(await poller.getSnapshot()).toBe(snap);
   });
 
-  it('aggregates aircraft from multiple sources and deduplicates', async () => {
+  it('only polls primary source even when multiple ADS_SOURCES configured', async () => {
     vi.resetModules();
     vi.stubEnv('ADS_SOURCES', 'https://src1.example.com/v2/point,https://src2.example.com/v2/point');
 
-    const acSrc1 = { hex: 'AAA', lat: 40, lon: -75, flight: 'UA1', r: 'N1', squawk: '7700', gs: 400, track: 90, alt_baro: 35000, baro_rate: 0 };
-    const acSrc2Only = { hex: 'BBB', lat: 41, lon: -76, flight: 'DA2', r: 'N2', squawk: '7700', gs: 350, track: 180, alt_baro: 30000, baro_rate: 0 };
-    const acSrc2Dupe = { ...acSrc1 }; // same hex as acSrc1 — should be deduped
+    const ac7700 = { hex: 'AAA', lat: 40, lon: -75, flight: 'UA1', r: 'N1', squawk: '7700', gs: 400, track: 90, alt_baro: 35000, baro_rate: 0 };
 
-    // src1: 7500=[], 7600=[], 7700=[AAA]; src2: 7500=[], 7600=[], 7700=[BBB, AAA(dupe)]
+    // Only 3 fetch calls expected — primary source only (7500, 7600, 7700)
     vi.mocked(fetch)
-      .mockResolvedValueOnce({ ok: true, json: async () => ({ ac: [] }) } as Response)   // src1/7500
-      .mockResolvedValueOnce({ ok: true, json: async () => ({ ac: [] }) } as Response)   // src1/7600
-      .mockResolvedValueOnce({ ok: true, json: async () => ({ ac: [acSrc1] }) } as Response) // src1/7700
-      .mockResolvedValueOnce({ ok: true, json: async () => ({ ac: [] }) } as Response)   // src2/7500
-      .mockResolvedValueOnce({ ok: true, json: async () => ({ ac: [] }) } as Response)   // src2/7600
-      .mockResolvedValueOnce({ ok: true, json: async () => ({ ac: [acSrc2Only, acSrc2Dupe] }) } as Response); // src2/7700
+      .mockResolvedValueOnce({ ok: true, json: async () => ({ ac: [] }) } as Response)        // src1/7500
+      .mockResolvedValueOnce({ ok: true, json: async () => ({ ac: [] }) } as Response)        // src1/7600
+      .mockResolvedValueOnce({ ok: true, json: async () => ({ ac: [ac7700] }) } as Response); // src1/7700
 
     const { EmergencyPoller } = await import('./EmergencyPoller');
     const poller = new EmergencyPoller(mockStore as never, mockIo as never);
     await poller.pollNow();
 
+    expect(fetch).toHaveBeenCalledTimes(3);
+    expect(fetch).not.toHaveBeenCalledWith(expect.stringContaining('src2'), expect.anything());
+
     const saved: EmergencyAircraft[] = mockStore.saveEmergencySnapshot.mock.calls[0][0];
-    expect(saved).toHaveLength(2);
-    expect(saved.map((a) => a.hex)).toEqual(expect.arrayContaining(['AAA', 'BBB']));
+    expect(saved).toHaveLength(1);
+    expect(saved[0].hex).toBe('AAA');
 
     vi.unstubAllEnvs();
     vi.resetModules();

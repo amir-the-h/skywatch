@@ -4,16 +4,19 @@ import type { EmergencyAircraft } from '../../shared/types';
 import { normalizeRaw } from './normalize';
 import { inferFlightPhase } from './AircraftProcessor';
 import type { RedisStore } from './RedisStore';
+import { rateLimiter } from './RateLimiter';
 
 const rawSources =
   process.env.ADS_SOURCES ?? process.env.ADS_SOURCE ?? 'https://api.airplanes.live/v2/point';
 
 const EMERGENCY_POLL_INTERVAL_MS = parseInt(process.env.EMERGENCY_POLL_INTERVAL_MS ?? '10000');
 
+// Emergency data is global — only the primary source is needed.
 // 'https://api.airplanes.live/v2/point' → 'https://api.airplanes.live/v2'
-const SQUAWK_BASES: string[] = rawSources
-  .split(',')
-  .map((url) => url.trim().replace(/\/[^/]+$/, ''));
+const SQUAWK_BASE: string = rawSources
+  .split(',')[0]
+  .trim()
+  .replace(/\/[^/]+$/, '');
 
 export class EmergencyPoller {
   private timer: ReturnType<typeof setInterval> | null = null;
@@ -39,9 +42,7 @@ export class EmergencyPoller {
 
   async pollNow(): Promise<void> {
     const results = await Promise.all(
-      SQUAWK_BASES.flatMap((base) =>
-        ['7500', '7600', '7700'].map((code) => this.fetchSquawk(base, code)),
-      ),
+      ['7500', '7600', '7700'].map((code) => this.fetchSquawk(SQUAWK_BASE, code))
     );
 
     const seen = new Set<string>();
@@ -61,13 +62,15 @@ export class EmergencyPoller {
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), 5000);
     try {
-      const res = await fetch(`${base}/squawk/${code}`, {
-        signal: controller.signal,
-        headers: {
-          'User-Agent':
-            'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-        },
-      });
+      const res = await rateLimiter.schedule(() =>
+        fetch(`${base}/squawk/${code}`, {
+          signal: controller.signal,
+          headers: {
+            'User-Agent':
+              'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+          },
+        })
+      );
       if (!res.ok) {
         console.error(`[emergency] ${base} squawk=${code} HTTP ${res.status}`);
         return [];
