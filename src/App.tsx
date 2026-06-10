@@ -57,6 +57,7 @@ export default function App() {
   const pendingNotifications = useEmergencyStore((s) => s.pendingNotifications);
   const clearNotifications = useEmergencyStore((s) => s.clearNotifications);
   const addToast = useToastStore((s) => s.addToast);
+  const muteEmergencyAlerts = useSettingsStore((s) => s.muteEmergencyAlerts);
 
   useEffect(() => {
     document.body.className = 'theme-dark';
@@ -65,9 +66,9 @@ export default function App() {
   useEffect(() => {
     if (pendingNotifications.length === 0) return;
     pendingNotifications.forEach((ac) => addToast(ac));
-    if (!settings.muteEmergencyAlerts) playEmergencyAlert();
+    if (!muteEmergencyAlerts) playEmergencyAlert();
     clearNotifications();
-  }, [pendingNotifications]);
+  }, [pendingNotifications, addToast, clearNotifications, muteEmergencyAlerts]);
 
   useAircraftSocket();
   useVersionPoller();
