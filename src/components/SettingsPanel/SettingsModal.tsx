@@ -195,6 +195,17 @@ export function SettingsModal({ onClose }: Props) {
             </>
           )}
 
+          <div className="modal-section-title">Notifications</div>
+
+          <label>
+            <input
+              type="checkbox"
+              checked={settings.muteEmergencyAlerts}
+              onChange={(e) => settings.update({ muteEmergencyAlerts: e.target.checked })}
+            />
+            Mute emergency audio alerts
+          </label>
+
           <label>
             Radar rings (comma-separated km)
             <input

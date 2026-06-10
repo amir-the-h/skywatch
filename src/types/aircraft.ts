@@ -37,6 +37,7 @@ export interface Settings {
   showAirports: boolean;
   airportTypes: ('large_airport' | 'medium_airport' | 'small_airport')[];
   observerElevationFt?: number;
+  muteEmergencyAlerts: boolean;
 }
 
 export const DEFAULT_SETTINGS: Settings = {
@@ -50,4 +51,5 @@ export const DEFAULT_SETTINGS: Settings = {
   labelConditions: ['always'],
   showAirports: true,
   airportTypes: ['large_airport', 'medium_airport'],
+  muteEmergencyAlerts: false,
 };
