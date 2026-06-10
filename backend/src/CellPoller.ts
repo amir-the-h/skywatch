@@ -5,6 +5,7 @@ import { inferFlightPhase } from './AircraftProcessor';
 import { mergeAircraftSources, type NormalizedAircraft } from './AircraftMerger';
 import { normalizeRaw } from './normalize';
 import { RedisStore } from './RedisStore';
+import { rateLimiter } from './RateLimiter';
 
 const rawSources =
   process.env.ADS_SOURCES ?? process.env.ADS_SOURCE ?? 'https://api.airplanes.live/v2/point';
@@ -49,13 +50,15 @@ async function fetchSource(
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), 5000);
   try {
-    const res = await fetch(`${url}/${gLat}/${gLon}/${radiusNm}`, {
-      signal: controller.signal,
-      headers: {
-        'User-Agent':
-          'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-      },
-    });
+    const res = await rateLimiter.schedule(() =>
+      fetch(`${url}/${gLat}/${gLon}/${radiusNm}`, {
+        signal: controller.signal,
+        headers: {
+          'User-Agent':
+            'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        },
+      })
+    );
     if (!res.ok) {
       console.error(`[poll] src=${priority} error: HTTP ${res.status}`);
       return { priority, aircraft: [] };
