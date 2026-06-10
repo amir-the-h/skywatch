@@ -6,6 +6,9 @@ import { useVersionPoller } from './hooks/useVersionPoller';
 import { useIdleCursor } from './hooks/useIdleCursor';
 import { useAircraftStore } from './store/aircraftStore';
 import { useEmergencyStore } from './store/emergencyStore';
+import { useToastStore } from './store/toastStore';
+import { ToastContainer } from './components/ToastContainer/ToastContainer';
+import { playEmergencyAlert } from './lib/audio';
 import { MapView } from './components/MapView/MapView';
 import { RadarView } from './components/RadarView/RadarView';
 import { SettingsModal } from './components/SettingsPanel/SettingsModal';
@@ -51,9 +54,20 @@ export default function App() {
   const [showSettings, setShowSettings] = useState(false);
   const [showEmergency, setShowEmergency] = useState(false);
 
+  const pendingNotifications = useEmergencyStore((s) => s.pendingNotifications);
+  const clearNotifications = useEmergencyStore((s) => s.clearNotifications);
+  const addToast = useToastStore((s) => s.addToast);
+
   useEffect(() => {
     document.body.className = 'theme-dark';
   }, []);
+
+  useEffect(() => {
+    if (pendingNotifications.length === 0) return;
+    pendingNotifications.forEach((ac) => addToast(ac));
+    if (!settings.muteEmergencyAlerts) playEmergencyAlert();
+    clearNotifications();
+  }, [pendingNotifications]);
 
   useAircraftSocket();
   useVersionPoller();
@@ -117,6 +131,7 @@ export default function App() {
       </div>
 
       <FilterDrawer />
+      <ToastContainer />
 
       {showSettings && <SettingsModal onClose={() => setShowSettings(false)} />}
       {showEmergency && <EmergencyDrawer onClose={() => setShowEmergency(false)} />}
