@@ -33,22 +33,10 @@ export function useIdleCursor(): void {
       }
     }
 
-    function onFullscreenChange() {
-      if (document.fullscreenElement) {
-        document.addEventListener('mousemove', resetTimer);
-        resetTimer();
-      } else {
-        document.removeEventListener('mousemove', resetTimer);
-        clearTimer();
-        showCursor();
-      }
-    }
-
-    document.addEventListener('fullscreenchange', onFullscreenChange);
-    onFullscreenChange(); // handle already-fullscreen on mount
+    document.addEventListener('mousemove', resetTimer);
+    resetTimer();
 
     return () => {
-      document.removeEventListener('fullscreenchange', onFullscreenChange);
       document.removeEventListener('mousemove', resetTimer);
       clearTimer();
       showCursor();
