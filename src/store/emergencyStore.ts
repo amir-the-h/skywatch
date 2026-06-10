@@ -3,6 +3,7 @@ import type { EmergencyAircraft } from '../../shared/types';
 
 interface EmergencyStore {
   aircraft: EmergencyAircraft[];
+  /** @internal bookkeeping — do not subscribe to this in components */
   seenHexes: Set<string>;
   pendingNotifications: EmergencyAircraft[];
   setEmergency: (incoming: EmergencyAircraft[]) => void;
@@ -22,5 +23,6 @@ export const useEmergencyStore = create<EmergencyStore>((set, get) => ({
       pendingNotifications: newOnes,
     });
   },
+  // Clears the pending queue only. seenHexes is preserved so already-seen aircraft don't re-fire.
   clearNotifications: () => set({ pendingNotifications: [] }),
 }));

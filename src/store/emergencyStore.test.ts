@@ -57,4 +57,11 @@ describe('emergencyStore', () => {
     useEmergencyStore.getState().clearNotifications();
     expect(useEmergencyStore.getState().pendingNotifications).toHaveLength(0);
   });
+
+  it('clearNotifications does not reset seenHexes — already-seen aircraft do not re-fire', () => {
+    useEmergencyStore.getState().setEmergency([makeEmAc('A')]);
+    useEmergencyStore.getState().clearNotifications();
+    useEmergencyStore.getState().setEmergency([makeEmAc('A')]);
+    expect(useEmergencyStore.getState().pendingNotifications).toHaveLength(0);
+  });
 });
