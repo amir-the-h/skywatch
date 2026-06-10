@@ -52,7 +52,12 @@ export const useToastStore = create<ToastStore>((set) => ({
       5000,
     );
     const toast: Toast = { id, aircraft, label: getLabel(aircraft), color: getColor(aircraft), timerId };
-    set((s) => ({ toasts: [...s.toasts.slice(-(MAX_TOASTS - 1)), toast] }));
+    set((s) => {
+      const keep = s.toasts.slice(-(MAX_TOASTS - 1));
+      const evicted = s.toasts.slice(0, s.toasts.length - keep.length);
+      evicted.forEach((t) => clearTimeout(t.timerId));
+      return { toasts: [...keep, toast] };
+    });
   },
   removeToast: (id) =>
     set((s) => {
