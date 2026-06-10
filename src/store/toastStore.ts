@@ -27,11 +27,14 @@ function getColor(ac: EmergencyAircraft): string {
   return SQUAWK_COLORS[ac.squawk ?? ''] ?? '#ef4444';
 }
 
+const MAX_TOASTS = 3;
+
 export interface Toast {
   id: string;
   aircraft: EmergencyAircraft;
   label: string;
   color: string;
+  timerId: ReturnType<typeof setTimeout>;
 }
 
 interface ToastStore {
@@ -44,9 +47,17 @@ export const useToastStore = create<ToastStore>((set) => ({
   toasts: [],
   addToast: (aircraft) => {
     const id = `${aircraft.hex}-${Date.now()}`;
-    const toast: Toast = { id, aircraft, label: getLabel(aircraft), color: getColor(aircraft) };
-    set((s) => ({ toasts: [...s.toasts.slice(-2), toast] }));
-    setTimeout(() => set((s) => ({ toasts: s.toasts.filter((t) => t.id !== id) })), 5000);
+    const timerId = setTimeout(
+      () => set((s) => ({ toasts: s.toasts.filter((t) => t.id !== id) })),
+      5000,
+    );
+    const toast: Toast = { id, aircraft, label: getLabel(aircraft), color: getColor(aircraft), timerId };
+    set((s) => ({ toasts: [...s.toasts.slice(-(MAX_TOASTS - 1)), toast] }));
   },
-  removeToast: (id) => set((s) => ({ toasts: s.toasts.filter((t) => t.id !== id) })),
+  removeToast: (id) =>
+    set((s) => {
+      const toast = s.toasts.find((t) => t.id === id);
+      if (toast) clearTimeout(toast.timerId);
+      return { toasts: s.toasts.filter((t) => t.id !== id) };
+    }),
 }));
