@@ -117,7 +117,7 @@ export function SettingsModal({ onClose }: Props) {
               }}
             />
           </label>
-          <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.35)', marginTop: -8 }}>
+          <div className="modal-hint">
             0 = north-up · rotates radar so your heading faces top
           </div>
 
