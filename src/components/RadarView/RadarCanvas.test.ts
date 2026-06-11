@@ -4,7 +4,8 @@ const LABEL_HALF_W = 50;  // LABEL_W / 2
 const LABEL_HALF_H = 26;  // LABEL_H / 2
 
 import { describe, it, expect, beforeEach } from 'vitest';
-import { computeLabelPositions, resetLabelState } from './RadarCanvas';
+import { computeLabelPositions, resetLabelState, drawHeadingLabels } from './RadarCanvas';
+import type { RadarDrawParams } from './RadarCanvas';
 import type { Aircraft, LabelCondition } from '../../types/aircraft';
 
 function ac(hex: string, overrides: Partial<Aircraft> = {}): Aircraft {
@@ -168,5 +169,64 @@ describe('computeLabelPositions', () => {
       const r2 = computeLabelPositions({ ...BASE, aircraft: [] }, new Map(), 1);
       expect(r2.has('gone')).toBe(false);
     });
+  });
+});
+
+function makeCtx() {
+  const calls: Array<{ text: string; font: string }> = [];
+  let currentFont = '';
+  return {
+    ctx: {
+      save: () => {},
+      restore: () => {},
+      fillText: (text: string, _x: number, _y: number) => calls.push({ text, font: currentFont }),
+      get font() { return currentFont; },
+      set font(v: string) { currentFont = v; },
+      set fillStyle(_: unknown) {},
+      set textAlign(_: unknown) {},
+      set textBaseline(_: unknown) {},
+    } as unknown as CanvasRenderingContext2D,
+    calls,
+  };
+}
+
+const BASE_HEADING = { width: 800, height: 600 } as unknown as RadarDrawParams;
+
+describe('drawHeadingLabels', () => {
+  it('emits all 12 compass labels', () => {
+    const { ctx, calls } = makeCtx();
+    drawHeadingLabels({ ...BASE_HEADING, ctx });
+    const texts = calls.map(c => c.text);
+    expect(texts).toContain('N');
+    expect(texts).toContain('E');
+    expect(texts).toContain('S');
+    expect(texts).toContain('W');
+    expect(texts).toContain('30');
+    expect(texts).toContain('60');
+    expect(texts).toContain('120');
+    expect(texts).toContain('150');
+    expect(texts).toContain('210');
+    expect(texts).toContain('240');
+    expect(texts).toContain('300');
+    expect(texts).toContain('330');
+    expect(calls).toHaveLength(12);
+  });
+
+  it('renders N, E, S, W in bold', () => {
+    const { ctx, calls } = makeCtx();
+    drawHeadingLabels({ ...BASE_HEADING, ctx });
+    for (const label of ['N', 'E', 'S', 'W']) {
+      const call = calls.find(c => c.text === label)!;
+      expect(call.font).toMatch(/bold/);
+    }
+  });
+
+  it('renders numeric labels without bold', () => {
+    const { ctx, calls } = makeCtx();
+    drawHeadingLabels({ ...BASE_HEADING, ctx });
+    for (const label of ['30', '60', '120', '150', '210', '240', '300', '330']) {
+      const call = calls.find(c => c.text === label)!;
+      expect(call.font).not.toMatch(/bold/);
+    }
   });
 });
