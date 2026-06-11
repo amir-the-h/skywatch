@@ -141,10 +141,14 @@ const COMPASS_LABELS: Array<{ deg: number; text: string; bold: boolean }> = [
   { deg: 330, text: '330', bold: false },
 ];
 
-export function drawHeadingLabels({ ctx, width, height, headingDeg }: RadarDrawParams) {
+export function drawHeadingLabels({ ctx, width, height, headingDeg, radiusKm, ringIntervals, zoomLevel }: RadarDrawParams) {
   const cx = width / 2;
   const cy = height / 2;
-  const edgeR = Math.min(width, height) / 2 - 8;
+  const scale = Math.min(width, height) / 2 / radiusKm;
+  const originalRadiusKm = radiusKm * zoomLevel;
+  const visibleRings = ringIntervals.filter(km => km <= originalRadiusKm);
+  const outerKm = visibleRings.length > 0 ? Math.max(...visibleRings) : originalRadiusKm;
+  const edgeR = outerKm * scale + 12;
 
   ctx.save();
   ctx.textAlign = 'center';
