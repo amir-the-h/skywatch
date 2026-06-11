@@ -34,14 +34,28 @@ export function latLonToCanvas(
   centerLon: number,
   radiusKm: number,
   canvasWidth: number,
-  canvasHeight: number
+  canvasHeight: number,
+  headingDeg = 0,
 ): { x: number; y: number } {
   const scale = Math.min(canvasWidth, canvasHeight) / 2 / radiusKm;
   const dxKm = haversineKm(centerLat, centerLon, centerLat, lon) * (lon >= centerLon ? 1 : -1);
   const dyKm = haversineKm(centerLat, centerLon, lat, centerLon) * (lat >= centerLat ? 1 : -1);
+  if (headingDeg === 0) {
+    return {
+      x: canvasWidth / 2 + dxKm * scale,
+      y: canvasHeight / 2 - dyKm * scale,
+    };
+  }
+  // Rotate the geographic offset so `headingDeg` faces up.
+  // Canvas vector: ox = east (+x), oy = north (-y in canvas → use -dyKm).
+  const angle = (-headingDeg * Math.PI) / 180;
+  const cos = Math.cos(angle);
+  const sin = Math.sin(angle);
+  const rx = dxKm * cos - (-dyKm) * sin;
+  const ry = dxKm * sin + (-dyKm) * cos;
   return {
-    x: canvasWidth / 2 + dxKm * scale,
-    y: canvasHeight / 2 - dyKm * scale,
+    x: canvasWidth / 2 + rx * scale,
+    y: canvasHeight / 2 + ry * scale,
   };
 }
 
@@ -81,12 +95,13 @@ export function findClosestAirport(
   centerLon: number,
   radiusKm: number,
   width: number,
-  height: number
+  height: number,
+  headingDeg = 0,
 ): Airport | null {
   let closest: Airport | null = null;
   let minDist = 18;
   for (const airport of airports) {
-    const pos = latLonToCanvas(airport.lat, airport.lon, centerLat, centerLon, radiusKm, width, height);
+    const pos = latLonToCanvas(airport.lat, airport.lon, centerLat, centerLon, radiusKm, width, height, headingDeg);
     const dist = Math.hypot(mx - pos.x, my - pos.y);
     if (dist < minDist) {
       minDist = dist;

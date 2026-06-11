@@ -209,7 +209,8 @@ export function RadarView() {
         const pos = latLonToCanvas(
           ac._renderLat, ac._renderLon,
           latRef.current, lngRef.current, effectiveRadius,
-          canvas.width, canvas.height
+          canvas.width, canvas.height,
+          headingDegRef.current,
         );
         if (Math.hypot(mx - pos.x, my - pos.y) < hitRadius) return ac.hex;
       }
@@ -231,7 +232,8 @@ export function RadarView() {
         mx, my,
         latRef.current, lngRef.current,
         effectiveRadius,
-        canvas.width, canvas.height
+        canvas.width, canvas.height,
+        headingDegRef.current,
       );
     },
     []
