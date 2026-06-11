@@ -51,15 +51,30 @@ describe('useCompass', () => {
     expect(useCompassStore.getState().isActive).toBe(true);
   });
 
-  it('updates headingDeg when orientation event fires with alpha', async () => {
+  it('updates headingDeg when absolute orientation event fires with alpha', async () => {
     (window as unknown as Record<string, unknown>).DeviceOrientationEvent = class {};
     await act(async () => { await useCompassStore.getState().enable(); });
 
     const event = new Event('deviceorientation') as DeviceOrientationEvent;
-    Object.defineProperty(event, 'alpha', { value: 135, configurable: true });
+    Object.defineProperty(event, 'alpha', { value: 90, configurable: true });
+    Object.defineProperty(event, 'absolute', { value: true, configurable: true });
     act(() => { window.dispatchEvent(event); });
 
-    expect(useSettingsStore.getState().headingDeg).toBe(135);
+    // alpha=90 (CCW from north) → compass heading = (360-90)%360 = 270
+    expect(useSettingsStore.getState().headingDeg).toBe(270);
+  });
+
+  it('ignores non-absolute deviceorientation alpha (no webkitCompassHeading)', async () => {
+    (window as unknown as Record<string, unknown>).DeviceOrientationEvent = class {};
+    await act(async () => { await useCompassStore.getState().enable(); });
+
+    const before = useSettingsStore.getState().headingDeg;
+    const event = new Event('deviceorientation') as DeviceOrientationEvent;
+    Object.defineProperty(event, 'alpha', { value: 90, configurable: true });
+    Object.defineProperty(event, 'absolute', { value: false, configurable: true });
+    act(() => { window.dispatchEvent(event); });
+
+    expect(useSettingsStore.getState().headingDeg).toBe(before);
   });
 
   it('does not update headingDeg when alpha is null', async () => {
@@ -89,6 +104,7 @@ describe('useCompass', () => {
     useSettingsStore.setState(DEFAULT_SETTINGS);
     const event = new Event('deviceorientation') as DeviceOrientationEvent;
     Object.defineProperty(event, 'alpha', { value: 270, configurable: true });
+    Object.defineProperty(event, 'absolute', { value: true, configurable: true });
     act(() => { window.dispatchEvent(event); });
 
     expect(useSettingsStore.getState().headingDeg).toBe(DEFAULT_SETTINGS.headingDeg);
@@ -114,9 +130,11 @@ describe('useCompass', () => {
 
     const event = new Event('deviceorientationabsolute') as DeviceOrientationEvent;
     Object.defineProperty(event, 'alpha', { value: 45, configurable: true });
+    Object.defineProperty(event, 'absolute', { value: true, configurable: true });
     act(() => { window.dispatchEvent(event); });
 
-    expect(useSettingsStore.getState().headingDeg).toBe(45);
+    // alpha=45 (CCW from north) → compass heading = (360-45)%360 = 315
+    expect(useSettingsStore.getState().headingDeg).toBe(315);
 
     // cleanup
     delete (window as unknown as Record<string, unknown>).ondeviceorientationabsolute;
