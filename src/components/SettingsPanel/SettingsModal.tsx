@@ -104,6 +104,24 @@ export function SettingsModal({ onClose }: Props) {
           </label>
 
           <label>
+            Radar heading (°)
+            <input
+              type="number"
+              min={0}
+              max={359}
+              step={1}
+              value={settings.headingDeg}
+              onChange={(e) => {
+                const v = parseInt(e.target.value);
+                if (!isNaN(v)) settings.update({ headingDeg: Math.min(359, Math.max(0, v)) });
+              }}
+            />
+          </label>
+          <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.35)', marginTop: -8 }}>
+            0 = north-up · rotates radar so your heading faces top
+          </div>
+
+          <label>
             Radius (km)
             <input
               type="number"
