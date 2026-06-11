@@ -39,7 +39,14 @@ export const useCompassStore = create<CompassState>()((set, get) => ({
       }
     }
     _listener = (e: DeviceOrientationEvent & { webkitCompassHeading?: number }) => {
-      const heading = e.alpha ?? e.webkitCompassHeading;
+      let heading: number | null = null;
+      if (e.webkitCompassHeading != null) {
+        // iOS Safari: direct clockwise compass heading
+        heading = e.webkitCompassHeading;
+      } else if (e.alpha != null && e.absolute) {
+        // Absolute orientation: alpha is CCW from north, convert to CW compass heading
+        heading = (360 - e.alpha) % 360;
+      }
       if (heading == null) return;
       useSettingsStore.getState().update({ headingDeg: Math.round(heading) % 360 });
     };
