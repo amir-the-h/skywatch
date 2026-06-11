@@ -190,7 +190,7 @@ function makeCtx() {
   };
 }
 
-const BASE_HEADING = { width: 800, height: 600 } as unknown as RadarDrawParams;
+const BASE_HEADING = { width: 800, height: 600, radiusKm: 150, ringIntervals: [25, 50, 100, 150], zoomLevel: 1, headingDeg: 0 } as unknown as RadarDrawParams;
 
 describe('drawHeadingLabels', () => {
   it('emits all 12 compass labels', () => {
