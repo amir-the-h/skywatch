@@ -415,6 +415,12 @@ body.theme-light {
   margin-top: -4px;
 }
 
+.compass-status {
+  font-size: 13px;
+  color: var(--text-muted, #aaa);
+  padding: 4px 0;
+}
+
 .modal-body input[type=range] {
   padding: 0;
   border: none;

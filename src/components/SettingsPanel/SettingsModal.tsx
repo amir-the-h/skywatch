@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useSettingsStore } from '../../hooks/useSettings';
+import { useCompassStore } from '../../hooks/useCompass';
 import type { LabelCondition } from '../../types/aircraft';
 
 interface Props {
@@ -8,6 +9,7 @@ interface Props {
 
 export function SettingsModal({ onClose }: Props) {
   const settings = useSettingsStore();
+  const compass = useCompassStore();
   const [geoStatus, setGeoStatus] = useState<'idle' | 'loading' | 'error'>('idle');
   const [ringText, setRingText] = useState(settings.ringIntervals.join(', '));
 
@@ -103,23 +105,69 @@ export function SettingsModal({ onClose }: Props) {
             />
           </label>
 
-          <label>
-            Radar heading (°)
-            <input
-              type="number"
-              min={0}
-              max={359}
-              step={1}
-              value={settings.headingDeg}
-              onChange={(e) => {
-                const v = parseInt(e.target.value);
-                if (!isNaN(v)) settings.update({ headingDeg: Math.min(359, Math.max(0, v)) });
-              }}
-            />
-          </label>
-          <div className="modal-hint">
-            0 = north-up · rotates radar so your heading faces top
-          </div>
+          {compass.error !== 'unsupported' ? (
+            <>
+              {!compass.isActive && (
+                <>
+                  <label>
+                    Radar heading (°)
+                    <input
+                      type="number"
+                      min={0}
+                      max={359}
+                      step={1}
+                      value={settings.headingDeg}
+                      onChange={(e) => {
+                        const v = parseInt(e.target.value);
+                        if (!isNaN(v)) settings.update({ headingDeg: Math.min(359, Math.max(0, v)) });
+                      }}
+                    />
+                  </label>
+                  <div className="modal-hint">
+                    0 = north-up · rotates radar so your heading faces top
+                  </div>
+                </>
+              )}
+              {compass.isActive && (
+                <div className="compass-status">
+                  Compass active · {settings.headingDeg}°
+                </div>
+              )}
+              {compass.error === 'denied' && (
+                <div className="modal-hint">Compass permission denied</div>
+              )}
+              {!compass.isActive && compass.error !== 'denied' && (
+                <button className="geo-btn" onClick={() => compass.enable()}>
+                  Use compass
+                </button>
+              )}
+              {compass.isActive && (
+                <button className="geo-btn" onClick={() => compass.disable()}>
+                  Stop
+                </button>
+              )}
+            </>
+          ) : (
+            <>
+              <label>
+                Radar heading (°)
+                <input
+                  type="number"
+                  min={0}
+                  max={359}
+                  step={1}
+                  value={settings.headingDeg}
+                  onChange={(e) => {
+                    const v = parseInt(e.target.value);
+                    if (!isNaN(v)) settings.update({ headingDeg: Math.min(359, Math.max(0, v)) });
+                  }}
+                />
+              </label>
+              <div className="modal-hint">
+                0 = north-up · rotates radar so your heading faces top
+              </div>
+            </>
+          )}
 
           <label>
             Radius (km)
