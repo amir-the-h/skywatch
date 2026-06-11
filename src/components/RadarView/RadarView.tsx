@@ -129,6 +129,7 @@ export function RadarView() {
         zoomLevel: zoomLevelRef.current,
         metar: metarRef.current,
         centerWeather: centerWeatherRef.current,
+        headingDeg: 0,
       });
       rafRef.current = requestAnimationFrame(loop);
     };

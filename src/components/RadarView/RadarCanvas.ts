@@ -50,17 +50,29 @@ export interface RadarDrawParams {
   zoomLevel: number;
   metar?: Map<string, MetarData>;
   centerWeather?: PointWeather | null;
+  headingDeg: number;
 }
 
 const BG_COLOR = '#0a0b0f';
 
 export function drawRadar(params: RadarDrawParams) {
-  const { ctx, width, height, panOffset } = params;
+  const { ctx, width, height, panOffset, headingDeg } = params;
   ctx.clearRect(0, 0, width, height);
 
   ctx.fillStyle = BG_COLOR;
   ctx.fillRect(0, 0, width, height);
 
+  // Outer save: rotation only (heading labels live here, not in pan context)
+  ctx.save();
+  if (headingDeg !== 0) {
+    const cx = width / 2;
+    const cy = height / 2;
+    ctx.translate(cx, cy);
+    ctx.rotate((-headingDeg * Math.PI) / 180);
+    ctx.translate(-cx, -cy);
+  }
+
+  // Inner save: pan offset for all geo-positioned content
   ctx.save();
   ctx.translate(panOffset.x, panOffset.y);
   drawRings(params);
@@ -72,7 +84,10 @@ export function drawRadar(params: RadarDrawParams) {
   const renderData = drawAllAircraft(params);
   drawAircraftLabels(params, renderData);
   ctx.restore();
-  drawCardinals(params);
+
+  // Heading labels: in rotation context but NOT shifted by panOffset
+  drawHeadingLabels(params);
+  ctx.restore();
 }
 
 function drawRings({ ctx, width, height, radiusKm, ringIntervals, zoomLevel }: RadarDrawParams) {
@@ -124,13 +139,40 @@ function drawGrid({ ctx, width, height, radiusKm }: RadarDrawParams) {
   }
 }
 
-function drawCardinals({ ctx, width }: RadarDrawParams) {
-  const color = 'rgba(255,255,255,0.45)';
-  ctx.fillStyle = color;
-  ctx.font = 'bold 13px monospace';
+const COMPASS_LABELS: Array<{ deg: number; text: string; bold: boolean }> = [
+  { deg: 0,   text: 'N',   bold: true },
+  { deg: 30,  text: '30',  bold: false },
+  { deg: 60,  text: '60',  bold: false },
+  { deg: 90,  text: 'E',   bold: true },
+  { deg: 120, text: '120', bold: false },
+  { deg: 150, text: '150', bold: false },
+  { deg: 180, text: 'S',   bold: true },
+  { deg: 210, text: '210', bold: false },
+  { deg: 240, text: '240', bold: false },
+  { deg: 270, text: 'W',   bold: true },
+  { deg: 300, text: '300', bold: false },
+  { deg: 330, text: '330', bold: false },
+];
+
+export function drawHeadingLabels({ ctx, width, height }: RadarDrawParams) {
+  const cx = width / 2;
+  const cy = height / 2;
+  const edgeR = Math.min(width, height) / 2 - 8;
+
+  ctx.save();
   ctx.textAlign = 'center';
-  ctx.textBaseline = 'top';
-  ctx.fillText('N', width / 2, 8);
+  ctx.textBaseline = 'middle';
+
+  for (const { deg, text, bold } of COMPASS_LABELS) {
+    const rad = (deg * Math.PI) / 180;
+    const x = cx + Math.sin(rad) * edgeR;
+    const y = cy - Math.cos(rad) * edgeR;
+    ctx.font = bold ? 'bold 13px monospace' : '11px monospace';
+    ctx.fillStyle = bold ? 'rgba(255,255,255,0.7)' : 'rgba(255,255,255,0.45)';
+    ctx.fillText(text, x, y);
+  }
+
+  ctx.restore();
 }
 
 const WIND_COLOR = 'rgba(255,255,255,0.65)';
