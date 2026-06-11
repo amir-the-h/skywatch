@@ -69,7 +69,7 @@ export function drawRadar(params: RadarDrawParams) {
   drawHeadingLabels(params);
   drawAirports(params);
   if (params.centerWeather) {
-    drawWindBarb(ctx, width / 2, height / 2, params.centerWeather, Math.sqrt(params.zoomLevel));
+    drawWindBarb(ctx, width / 2, height / 2, params.centerWeather, Math.sqrt(params.zoomLevel), headingDeg);
   }
   const renderData = drawAllAircraft(params);
   drawAircraftLabels(params, renderData);
@@ -171,7 +171,7 @@ const CALM_KTS = 3;
 
 // Meteorological wind barb. Staff points upwind (direction wind comes FROM).
 // Barbs on left side of staff (facing tip): half=5kt, full=10kt, pennant=50kt.
-function drawWindBarb(ctx: CanvasRenderingContext2D, cx: number, cy: number, metar: { windDir: number | null; windSpeed: number }, s: number): void {
+function drawWindBarb(ctx: CanvasRenderingContext2D, cx: number, cy: number, metar: { windDir: number | null; windSpeed: number }, s: number, headingDeg = 0): void {
   const { windDir, windSpeed } = metar;
 
   ctx.save();
@@ -202,7 +202,8 @@ function drawWindBarb(ctx: CanvasRenderingContext2D, cx: number, cy: number, met
   }
 
   // windDir 0=from N, 90=from E; canvas: 0=right, angle increases clockwise
-  const angle = (windDir - 90) * (Math.PI / 180);
+  // subtract headingDeg so the barb rotates with the view when compass mode is active
+  const angle = (windDir - 90 - headingDeg) * (Math.PI / 180);
   const staffLen = 22 * s;
   const ux = Math.cos(angle); // staff direction unit vector
   const uy = Math.sin(angle);
@@ -303,7 +304,7 @@ function resolveRunwayLabels(labels: RunwayLabel[], fontSize: number): void {
 }
 
 function drawAirports(params: RadarDrawParams) {
-  const { ctx, width, height, centerLat, centerLon, radiusKm, airports, metar, zoomLevel } = params;
+  const { ctx, width, height, centerLat, centerLon, radiusKm, airports, metar, zoomLevel, headingDeg } = params;
   if (!airports.length) return;
 
   const base = '255,255,255';
@@ -325,15 +326,17 @@ function drawAirports(params: RadarDrawParams) {
       ctx.font = `${labelSize}px monospace`;
       ctx.textAlign = 'left';
       ctx.textBaseline = 'top';
-      ctx.fillText(airport.iata || airport.icao, center.x + 5 * z, center.y - 10 * z);
+      ctx.fillText(airport.iata || airport.icao, center.x + 8 * z, center.y - 22 * z);
       ctx.restore();
       const metarData = metar?.get(airport.icao);
-      if (metarData) drawWindBarb(ctx, center.x, center.y, metarData, z);
+      if (metarData) drawWindBarb(ctx, center.x, center.y, metarData, z, headingDeg);
       continue;
     }
 
     let maxLenPx = 0;
     const identLabels: RunwayLabel[] = [];
+    // Collect runway endpoints in canvas space to compute bounding box for label/barb placement
+    let bbMinX = center.x, bbMaxX = center.x, bbMinY = center.y, bbMaxY = center.y;
 
     for (const runway of airport.runways) {
       const le = latLonToCanvas(runway.le.lat, runway.le.lon, centerLat, centerLon, radiusKm, width, height, params.headingDeg);
@@ -344,6 +347,11 @@ function drawAirports(params: RadarDrawParams) {
       const lenPx = Math.hypot(dx, dy);
       if (lenPx < 8) continue;
       maxLenPx = Math.max(maxLenPx, lenPx);
+
+      bbMinX = Math.min(bbMinX, le.x, he.x);
+      bbMaxX = Math.max(bbMaxX, le.x, he.x);
+      bbMinY = Math.min(bbMinY, le.y, he.y);
+      bbMaxY = Math.max(bbMaxY, le.y, he.y);
 
       const rcx = (le.x + he.x) / 2;
       const rcy = (le.y + he.y) / 2;
@@ -396,16 +404,64 @@ function drawAirports(params: RadarDrawParams) {
     }
     ctx.restore();
 
+    // Orbit placement — mirrors the aircraft bubble system.
+    // Try each SLOT_ANGLE at LABEL_OFFSET_NEAR beyond the runway bbox edge (already in
+    // canvas space so headingDeg is baked in). Score against ident label proximity and
+    // apply the same upper-right angle preference used for aircraft labels.
+    const hw = (bbMaxX - bbMinX) / 2;
+    const hh = (bbMaxY - bbMinY) / 2;
+    const bcx = (bbMinX + bbMaxX) / 2;
+    const bcy = (bbMinY + bbMaxY) / 2;
+    const orbitOffset = LABEL_OFFSET_NEAR * z;
+    const preferredAngle = -Math.PI / 4;
+
+    let bestAnchorX = bcx;
+    let bestAnchorY = bcy;
+    let bestScore = Infinity;
+
+    for (const angle of SLOT_ANGLES) {
+      const cos = Math.cos(angle);
+      const sin = Math.sin(angle);
+      const edgeDist = Math.min(
+        Math.abs(cos) > 1e-6 ? hw / Math.abs(cos) : Infinity,
+        Math.abs(sin) > 1e-6 ? hh / Math.abs(sin) : Infinity,
+      );
+      const px = bcx + cos * (edgeDist + orbitOffset);
+      const py = bcy + sin * (edgeDist + orbitOffset);
+
+      let score = 0;
+      for (const lbl of identLabels) {
+        const dist = Math.hypot(px - lbl.x, py - lbl.y);
+        const excl = (identSize + 10) * z;
+        if (dist < excl) score += (excl - dist) ** 2;
+      }
+      let angleDiff = Math.abs(angle - preferredAngle);
+      if (angleDiff > Math.PI) angleDiff = 2 * Math.PI - angleDiff;
+      score += angleDiff * LABEL_ANGLE_PENALTY;
+
+      if (score < bestScore) {
+        bestScore = score;
+        bestAnchorX = px;
+        bestAnchorY = py;
+      }
+    }
+
+    // Align text away from the bbox so it never points back over the runways
+    const dxAnchor = bestAnchorX - bcx;
+    const textAlign: CanvasTextAlign = Math.abs(dxAnchor) < orbitOffset * 0.3 ? 'center' : dxAnchor > 0 ? 'left' : 'right';
+    const nameY = bestAnchorY - (labelSize / 2 + 3 * z);
+    const barbY = bestAnchorY + (labelSize / 2 + 5 * z);
+
     if (maxLenPx >= 12) {
       ctx.fillStyle = `rgba(${base}, 0.65)`;
       ctx.font = `${labelSize}px monospace`;
-      ctx.textAlign = 'left';
-      ctx.textBaseline = 'top';
-      ctx.fillText(airport.iata || airport.icao, center.x + 5 * z, center.y - 10 * z);
+      ctx.textAlign = textAlign;
+      ctx.textBaseline = 'middle';
+      ctx.fillText(airport.iata || airport.icao, bestAnchorX, nameY);
     }
 
     const metarData = metar?.get(airport.icao);
-    if (metarData) drawWindBarb(ctx, center.x, center.y, metarData, z);
+    if (metarData) drawWindBarb(ctx, bestAnchorX, barbY, metarData, z, headingDeg);
   }
 }
 
