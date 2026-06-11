@@ -12,11 +12,12 @@ interface CompassState {
 let _listener: ((e: DeviceOrientationEvent) => void) | null = null;
 let _eventName: string | null = null;
 
-export const useCompassStore = create<CompassState>()((set) => ({
+export const useCompassStore = create<CompassState>()((set, get) => ({
   isActive: false,
   error: null,
 
   enable: async () => {
+    if (get().isActive) return;
     if (typeof (window as unknown as Record<string, unknown>).DeviceOrientationEvent === 'undefined') {
       set({ error: 'unsupported' });
       return;
@@ -55,6 +56,6 @@ export const useCompassStore = create<CompassState>()((set) => ({
       _listener = null;
       _eventName = null;
     }
-    set({ isActive: false });
+    set({ isActive: false, error: null });
   },
 }));

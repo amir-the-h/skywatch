@@ -93,4 +93,43 @@ describe('useCompass', () => {
 
     expect(useSettingsStore.getState().headingDeg).toBe(DEFAULT_SETTINGS.headingDeg);
   });
+
+  it('updates headingDeg via webkitCompassHeading when alpha is null', async () => {
+    (window as unknown as Record<string, unknown>).DeviceOrientationEvent = class {};
+    await act(async () => { await useCompassStore.getState().enable(); });
+
+    const event = new Event('deviceorientation') as DeviceOrientationEvent & { webkitCompassHeading?: number };
+    Object.defineProperty(event, 'alpha', { value: null, configurable: true });
+    Object.defineProperty(event, 'webkitCompassHeading', { value: 270, configurable: true });
+    act(() => { window.dispatchEvent(event); });
+
+    expect(useSettingsStore.getState().headingDeg).toBe(270);
+  });
+
+  it('uses deviceorientationabsolute event when ondeviceorientationabsolute is present', async () => {
+    (window as unknown as Record<string, unknown>).DeviceOrientationEvent = class {};
+    (window as unknown as Record<string, unknown>).ondeviceorientationabsolute = null;
+
+    await act(async () => { await useCompassStore.getState().enable(); });
+
+    const event = new Event('deviceorientationabsolute') as DeviceOrientationEvent;
+    Object.defineProperty(event, 'alpha', { value: 45, configurable: true });
+    act(() => { window.dispatchEvent(event); });
+
+    expect(useSettingsStore.getState().headingDeg).toBe(45);
+
+    // cleanup
+    delete (window as unknown as Record<string, unknown>).ondeviceorientationabsolute;
+  });
+
+  it('second enable() call is a no-op when already active', async () => {
+    (window as unknown as Record<string, unknown>).DeviceOrientationEvent = class {};
+    await act(async () => { await useCompassStore.getState().enable(); });
+
+    const addSpy = vi.spyOn(window, 'addEventListener');
+    await act(async () => { await useCompassStore.getState().enable(); });
+
+    expect(addSpy).not.toHaveBeenCalled();
+    addSpy.mockRestore();
+  });
 });
