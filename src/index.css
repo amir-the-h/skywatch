@@ -6,6 +6,7 @@ body {
   margin: 0;
   font-family: system-ui, -apple-system, sans-serif;
   overflow: hidden;
+  color: var(--text, #e5e7eb);
 }
 
 #root {
@@ -20,7 +21,7 @@ body.theme-dark {
   --surface: rgba(15, 16, 22, 0.9);
   --border: rgba(255,255,255,0.1);
   --text: #e5e7eb;
-  --text-muted: #6b7280;
+  --text-muted: #9ca3af;
   --accent: #7c3aed;
   --accent-light: #a78bfa;
   --chip-bg: rgba(255,255,255,0.08);
@@ -408,10 +409,18 @@ body.theme-light {
 .modal-body input:focus,
 .modal-body select:focus { border-color: var(--accent-light); }
 
+.modal-section-title {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--accent-light);
+  margin-top: 4px;
+}
+
 .modal-hint {
   font-size: 11px;
   color: var(--text-muted);
-  opacity: 0.6;
   margin-top: -4px;
 }
 
