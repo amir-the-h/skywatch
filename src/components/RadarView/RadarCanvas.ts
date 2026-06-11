@@ -66,6 +66,7 @@ export function drawRadar(params: RadarDrawParams) {
   ctx.translate(panOffset.x, panOffset.y);
   drawRings(params);
   drawGrid(params);
+  drawHeadingLabels(params);
   drawAirports(params);
   if (params.centerWeather) {
     drawWindBarb(ctx, width / 2, height / 2, params.centerWeather, Math.sqrt(params.zoomLevel));
@@ -73,8 +74,6 @@ export function drawRadar(params: RadarDrawParams) {
   const renderData = drawAllAircraft(params);
   drawAircraftLabels(params, renderData);
   ctx.restore();
-
-  drawHeadingLabels(params);
 }
 
 function drawRings({ ctx, width, height, radiusKm, ringIntervals, zoomLevel }: RadarDrawParams) {
