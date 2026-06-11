@@ -22,7 +22,7 @@ import type { Airport, MetarData, PointWeather } from '../../../../shared/types'
 export function RadarView() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const rafRef = useRef<number>(0);
-  const { lat, lng, radiusKm, ringIntervals, trailLength, labelConditions } = useSettingsStore();
+  const { lat, lng, radiusKm, ringIntervals, trailLength, labelConditions, headingDeg } = useSettingsStore();
   const aircraftMap = useAircraftStore((s) => s.aircraft);
   const pinnedHexes = useAircraftStore((s) => s.pinnedHexes);
   const hoveredHex = useAircraftStore((s) => s.hoveredHex);
@@ -52,6 +52,7 @@ export function RadarView() {
   const radiusKmRef = useRef(radiusKm);
   const trailLengthRef = useRef(trailLength);
   const labelConditionsRef = useRef(labelConditions);
+  const headingDegRef = useRef(headingDeg);
   useEffect(() => {
     latRef.current = lat;
     lngRef.current = lng;
@@ -59,6 +60,7 @@ export function RadarView() {
   }, [lat, lng, radiusKm]);
   useEffect(() => { trailLengthRef.current = trailLength; }, [trailLength]);
   useEffect(() => { labelConditionsRef.current = labelConditions; }, [labelConditions]);
+  useEffect(() => { headingDegRef.current = headingDeg; }, [headingDeg]);
 
   const filters = useFilterStore();
   const filtersRef = useRef(filters);
@@ -129,7 +131,7 @@ export function RadarView() {
         zoomLevel: zoomLevelRef.current,
         metar: metarRef.current,
         centerWeather: centerWeatherRef.current,
-        headingDeg: 0,
+        headingDeg: headingDegRef.current,
       });
       rafRef.current = requestAnimationFrame(loop);
     };
