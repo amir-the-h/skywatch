@@ -38,6 +38,7 @@ export interface Settings {
   airportTypes: ('large_airport' | 'medium_airport' | 'small_airport')[];
   observerElevationFt?: number;
   muteEmergencyAlerts: boolean;
+  headingDeg: number;
 }
 
 export const DEFAULT_SETTINGS: Settings = {
@@ -52,4 +53,5 @@ export const DEFAULT_SETTINGS: Settings = {
   showAirports: true,
   airportTypes: ['large_airport', 'medium_airport'],
   muteEmergencyAlerts: false,
+  headingDeg: 0,
 };
