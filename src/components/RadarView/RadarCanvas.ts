@@ -62,17 +62,6 @@ export function drawRadar(params: RadarDrawParams) {
   ctx.fillStyle = BG_COLOR;
   ctx.fillRect(0, 0, width, height);
 
-  // Outer save: rotation only (heading labels live here, not in pan context)
-  ctx.save();
-  if (headingDeg !== 0) {
-    const cx = width / 2;
-    const cy = height / 2;
-    ctx.translate(cx, cy);
-    ctx.rotate((-headingDeg * Math.PI) / 180);
-    ctx.translate(-cx, -cy);
-  }
-
-  // Inner save: pan offset for all geo-positioned content
   ctx.save();
   ctx.translate(panOffset.x, panOffset.y);
   drawRings(params);
@@ -85,9 +74,7 @@ export function drawRadar(params: RadarDrawParams) {
   drawAircraftLabels(params, renderData);
   ctx.restore();
 
-  // Heading labels: in rotation context but NOT shifted by panOffset
   drawHeadingLabels(params);
-  ctx.restore();
 }
 
 function drawRings({ ctx, width, height, radiusKm, ringIntervals, zoomLevel }: RadarDrawParams) {
@@ -154,7 +141,7 @@ const COMPASS_LABELS: Array<{ deg: number; text: string; bold: boolean }> = [
   { deg: 330, text: '330', bold: false },
 ];
 
-export function drawHeadingLabels({ ctx, width, height }: RadarDrawParams) {
+export function drawHeadingLabels({ ctx, width, height, headingDeg }: RadarDrawParams) {
   const cx = width / 2;
   const cy = height / 2;
   const edgeR = Math.min(width, height) / 2 - 8;
@@ -164,7 +151,8 @@ export function drawHeadingLabels({ ctx, width, height }: RadarDrawParams) {
   ctx.textBaseline = 'middle';
 
   for (const { deg, text, bold } of COMPASS_LABELS) {
-    const rad = (deg * Math.PI) / 180;
+    // Subtract headingDeg so the label for our heading appears at top
+    const rad = ((deg - headingDeg) * Math.PI) / 180;
     const x = cx + Math.sin(rad) * edgeR;
     const y = cy - Math.cos(rad) * edgeR;
     ctx.font = bold ? 'bold 13px monospace' : '11px monospace';
@@ -322,7 +310,7 @@ function drawAirports(params: RadarDrawParams) {
   const labelSize = Math.round(9 * z);
 
   for (const airport of airports) {
-    const center = latLonToCanvas(airport.lat, airport.lon, centerLat, centerLon, radiusKm, width, height);
+    const center = latLonToCanvas(airport.lat, airport.lon, centerLat, centerLon, radiusKm, width, height, params.headingDeg);
 
     if (airport.runways.length === 0) {
       ctx.save();
@@ -345,8 +333,8 @@ function drawAirports(params: RadarDrawParams) {
     const identLabels: RunwayLabel[] = [];
 
     for (const runway of airport.runways) {
-      const le = latLonToCanvas(runway.le.lat, runway.le.lon, centerLat, centerLon, radiusKm, width, height);
-      const he = latLonToCanvas(runway.he.lat, runway.he.lon, centerLat, centerLon, radiusKm, width, height);
+      const le = latLonToCanvas(runway.le.lat, runway.le.lon, centerLat, centerLon, radiusKm, width, height, params.headingDeg);
+      const he = latLonToCanvas(runway.he.lat, runway.he.lon, centerLat, centerLon, radiusKm, width, height, params.headingDeg);
 
       const dx = he.x - le.x;
       const dy = he.y - le.y;
@@ -421,7 +409,7 @@ function drawAirports(params: RadarDrawParams) {
 const AIRCRAFT_SIZE = 28;
 
 function drawAllAircraft(params: RadarDrawParams): Map<string, AircraftRenderData> {
-  const { ctx, width, height, centerLat, centerLon, radiusKm, aircraft, hoveredHex, pinnedHexes, trailLength, panOffset, zoomLevel } = params;
+  const { ctx, width, height, centerLat, centerLon, radiusKm, aircraft, hoveredHex, pinnedHexes, trailLength, panOffset, zoomLevel, headingDeg } = params;
 
   const renderData = new Map<string, AircraftRenderData>();
   const iconScale = iconScaleForZoom(zoomLevel);
@@ -435,7 +423,7 @@ function drawAllAircraft(params: RadarDrawParams): Map<string, AircraftRenderDat
 
   // First pass: compute positions and draw all trails
   for (const ac of aircraft) {
-    const pos = latLonToCanvas(ac._renderLat, ac._renderLon, centerLat, centerLon, radiusKm, width, height);
+    const pos = latLonToCanvas(ac._renderLat, ac._renderLon, centerLat, centerLon, radiusKm, width, height, headingDeg);
     if (screenPosToCull(pos.x, pos.y, panOffset.x, panOffset.y, width, height, cullPadding)) continue;
 
     const color = aircraftColor(ac.t);
@@ -453,7 +441,7 @@ function drawAllAircraft(params: RadarDrawParams): Map<string, AircraftRenderDat
       ctx.beginPath();
       let first = true;
       for (const { lat, lon } of history) {
-        const trailPos = latLonToCanvas(lat, lon, centerLat, centerLon, radiusKm, width, height);
+        const trailPos = latLonToCanvas(lat, lon, centerLat, centerLon, radiusKm, width, height, headingDeg);
         if (first) { ctx.moveTo(trailPos.x, trailPos.y); first = false; }
         else ctx.lineTo(trailPos.x, trailPos.y);
       }
@@ -473,7 +461,7 @@ function drawAllAircraft(params: RadarDrawParams): Map<string, AircraftRenderDat
     // Silhouette
     ctx.save();
     ctx.translate(pos.x, pos.y);
-    ctx.rotate((ac.track * Math.PI) / 180);
+    ctx.rotate(((ac.track - headingDeg) * Math.PI) / 180);
     ctx.scale(scaledSize / 200, scaledSize / 200);
 
     const p = new Path2D(pathStr);
@@ -498,7 +486,7 @@ function drawAllAircraft(params: RadarDrawParams): Map<string, AircraftRenderDat
 
     // Heading line
     if (ac.track != null && !Number.isNaN(ac.track)) {
-      const trackRad = (ac.track * Math.PI) / 180;
+      const trackRad = ((ac.track - headingDeg) * Math.PI) / 180;
       const noseX = pos.x + Math.sin(trackRad) * noseOffset;
       const noseY = pos.y - Math.cos(trackRad) * noseOffset;
 
@@ -761,7 +749,7 @@ export function computeLabelPositions(
 
 function drawAircraftLabels(params: RadarDrawParams, renderData: Map<string, AircraftRenderData>) {
   const { ctx, width, height, aircraft, labelConditions, pinnedHexes, zoomLevel, panOffset,
-    centerLat, centerLon, radiusKm, airports } = params;
+    centerLat, centerLon, radiusKm, airports, headingDeg } = params;
   const textColor = '#e5e7eb';
   const s = iconScaleForZoom(zoomLevel);
   const labelW = LABEL_W * s;
@@ -770,7 +758,7 @@ function drawAircraftLabels(params: RadarDrawParams, renderData: Map<string, Air
   const r = 5 * s;
 
   const airportPositions = airports.map(ap =>
-    latLonToCanvas(ap.lat, ap.lon, centerLat, centerLon, radiusKm, width, height)
+    latLonToCanvas(ap.lat, ap.lon, centerLat, centerLon, radiusKm, width, height, headingDeg)
   );
 
   const placements = computeLabelPositions(
