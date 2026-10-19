@@ -5,6 +5,9 @@ export class FetchQueue {
   private timer: ReturnType<typeof setInterval> | null = null;
   private fetchFn: FetchFn;
   private intervalMs: number;
+  // A tick is skipped while the previous poll is still running, so a slow
+  // upstream (or the shared RateLimiter) can't pile up unbounded work.
+  private inFlight = false;
 
   constructor(fetchFn: FetchFn, intervalMs: number) {
     this.fetchFn = fetchFn;
@@ -34,9 +37,16 @@ export class FetchQueue {
   }
 
   private async tick(): Promise<void> {
-    if (this.queue.length === 0) return;
+    if (this.queue.length === 0 || this.inFlight) return;
     const key = this.queue.shift()!;
     this.queue.push(key);
-    await this.fetchFn(key);
+    this.inFlight = true;
+    try {
+      await this.fetchFn(key);
+    } catch (err) {
+      console.error(`[queue] poll failed for ${key}: ${err instanceof Error ? err.message : String(err)}`);
+    } finally {
+      this.inFlight = false;
+    }
   }
 }

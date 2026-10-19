@@ -5,10 +5,11 @@ import { inferFlightPhase } from './AircraftProcessor';
 import { mergeAircraftSources, type NormalizedAircraft } from './AircraftMerger';
 import { normalizeRaw } from './normalize';
 import { RedisStore } from './RedisStore';
-import { rateLimiter } from './RateLimiter';
+import { fetchUpstreamJson } from './upstream';
+import { cellKey } from './GridEngine';
 
 const rawSources =
-  process.env.ADS_SOURCES ?? process.env.ADS_SOURCE ?? 'https://api.airplanes.live/v2/point';
+  process.env.ADS_SOURCES ?? process.env.ADS_SOURCE ?? 'https://api.adsb.lol/v2/point';
 
 const SOURCES: { url: string; priority: number }[] = rawSources
   .split(',')
@@ -47,23 +48,13 @@ async function fetchSource(
   radiusNm: number,
   priority: number
 ): Promise<{ priority: number; aircraft: NormalizedAircraft[] }> {
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), 5000);
   try {
-    const res = await rateLimiter.schedule(() =>
-      fetch(`${url}/${gLat}/${gLon}/${radiusNm}`, {
-        signal: controller.signal,
-        headers: {
-          'User-Agent':
-            'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-        },
-      })
-    );
+    const res = await fetchUpstreamJson(`${url}/${gLat.toFixed(4)}/${gLon.toFixed(4)}/${radiusNm}`);
     if (!res.ok) {
       console.error(`[poll] src=${priority} error: HTTP ${res.status}`);
       return { priority, aircraft: [] };
     }
-    const data = (await res.json()) as { ac?: unknown[] };
+    const data = res.data as { ac?: unknown[] };
     const rawAc = data.ac ?? [];
     const aircraft: NormalizedAircraft[] = [];
     for (const raw of rawAc) {
@@ -82,8 +73,6 @@ async function fetchSource(
     const msg = err instanceof Error ? err.message : String(err);
     console.error(`[poll] src=${priority} error: ${msg}`);
     return { priority, aircraft: [] };
-  } finally {
-    clearTimeout(timer);
   }
 }
 
@@ -102,7 +91,7 @@ export async function pollCell(
     SOURCES.map((src) => fetchSource(src.url, gLat, gLon, radiusNm, src.priority))
   );
 
-  const ck = `${gLat}:${gLon}`;
+  const ck = cellKey(gLat, gLon);
   const count = (pollCounters.get(ck) ?? 0) + 1;
   pollCounters.set(ck, count);
 
@@ -124,13 +113,15 @@ export async function pollCell(
   }
 
   const merged = mergeAircraftSources(sourceResults);
-  const aircraft: BackendAircraft[] = [];
-
-  for (const normalized of merged) {
-    await store.saveAircraft(normalized);
-    const pathHistory = await store.getPathHistory(normalized.hex);
-    aircraft.push({ ...normalized, pathHistory });
-  }
+  // Issued concurrently so node-redis pipelines them instead of paying one
+  // round-trip per command per aircraft.
+  const aircraft: BackendAircraft[] = await Promise.all(
+    merged.map(async (normalized) => {
+      await store.saveAircraft(normalized);
+      const pathHistory = await store.getPathHistory(normalized.hex);
+      return { ...normalized, pathHistory };
+    })
+  );
 
   await store.saveCellHexes(gLat, gLon, aircraft.map((a) => a.hex));
 
