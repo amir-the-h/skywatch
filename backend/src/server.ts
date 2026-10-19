@@ -10,10 +10,12 @@ import { loadAirports } from './AirportLoader';
 import { MetarPoller } from './MetarPoller';
 import { EmergencyPoller } from './EmergencyPoller';
 import { fetchCenterWeather } from './CenterWeatherFetcher';
+import { parseLocation } from './socketPayload';
 
 const PORT = parseInt(process.env.PORT ?? '3001');
 const REDIS_URL = process.env.REDIS_URL ?? 'redis://localhost:6379';
 const POLL_INTERVAL_MS = parseInt(process.env.POLL_INTERVAL_MS ?? '1000');
+const MAX_RADIUS_KM = parseInt(process.env.MAX_RADIUS_KM ?? '500');
 
 const app = express();
 const httpServer = createServer(app);
@@ -38,6 +40,20 @@ const cellMap = new Map<
   string,
   { gLat: number; gLon: number; sockets: Map<string, { userLat: number; userLon: number; radiusKm: number }> }
 >();
+
+// Per-socket promise chain: register/re-register/disconnect for one socket run
+// strictly in order, so a disconnect can't interleave with an in-flight register
+// and leave a dead socket subscribed to a cell.
+const socketChains = new Map<string, Promise<void>>();
+
+function runSerial(socketId: string, label: string, fn: () => Promise<void>): Promise<void> {
+  const prev = socketChains.get(socketId) ?? Promise.resolve();
+  const next = prev.then(fn).catch((err) => {
+    console.error(`[socket] ${label} failed for ${socketId}: ${err instanceof Error ? err.message : String(err)}`);
+  });
+  socketChains.set(socketId, next);
+  return next;
+}
 
 const metarPoller = new MetarPoller(store, io);
 const emergencyPoller = new EmergencyPoller(store, io);
@@ -109,9 +125,14 @@ async function unregisterSocket(socketId: string): Promise<void> {
 io.on('connection', (socket) => {
   console.log(`[socket] connect   ${socket.id} (total: ${io.engine.clientsCount})`);
 
-  socket.on(
-    'register_location',
-    async ({ lat, lon, radiusKm }: { lat: number; lon: number; radiusKm: number }) => {
+  socket.on('register_location', (payload: unknown) => {
+    const location = parseLocation(payload, MAX_RADIUS_KM);
+    if (!location) {
+      socket.emit('error_message', { error: 'invalid register_location payload' });
+      return;
+    }
+    const { lat, lon, radiusKm } = location;
+    void runSerial(socket.id, 'register', async () => {
       const existing = socketMap.get(socket.id);
       if (existing) {
         const { gLat: newGLat, gLon: newGLon } = snapToGrid(lat, lon);
@@ -140,14 +161,17 @@ io.on('connection', (socket) => {
         }
       }
       const { gLat, gLon } = snapToGrid(lat, lon);
-      console.log(`[socket] register  ${socket.id} → lat=${lat.toFixed(4)} lon=${lon.toFixed(4)} radius=${radiusKm}km cell=${gLat}:${gLon}`);
+      // Log only the ~5 km grid cell, not the user's exact coordinates.
+      console.log(`[socket] register  ${socket.id} → cell=${cellKey(gLat, gLon)} radius=${radiusKm}km`);
       await registerSocket(socket.id, lat, lon, radiusKm);
-    }
-  );
+    });
+  });
 
-  socket.on('disconnect', async () => {
+  socket.on('disconnect', () => {
     console.log(`[socket] disconnect ${socket.id} (total: ${io.engine.clientsCount - 1})`);
-    await unregisterSocket(socket.id);
+    void runSerial(socket.id, 'unregister', () => unregisterSocket(socket.id)).then(() => {
+      socketChains.delete(socket.id);
+    });
   });
 });
 
@@ -160,9 +184,12 @@ async function main() {
   emergencyPoller.start();
   httpServer.listen(PORT, () => {
     console.log(`[server] listening on port ${PORT}`);
-    console.log(`[server] redis: ${REDIS_URL}`);
+    console.log(`[server] redis: ${REDIS_URL.replace(/\/\/[^@/]*@/, '//***@')}`);
     console.log(`[server] poll interval: ${POLL_INTERVAL_MS}ms`);
   });
 }
 
-main().catch(console.error);
+main().catch((err) => {
+  console.error('[server] fatal:', err);
+  process.exit(1);
+});
