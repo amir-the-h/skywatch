@@ -20,14 +20,14 @@ describe('MetarPoller', () => {
   it('addSocket registers socket icaos', async () => {
     const { MetarPoller } = await import('./MetarPoller');
     const poller = new MetarPoller(mockStore as never, mockIo as never);
-    poller.addSocket('s1', ['KLAX', 'KORD']);
+    poller.addSocket('s1', ['KLAX', 'KORD'], 0, 0);
     expect(poller.allWantedIcaos()).toEqual(expect.arrayContaining(['KLAX', 'KORD']));
   });
 
   it('removeSocket clears socket icaos', async () => {
     const { MetarPoller } = await import('./MetarPoller');
     const poller = new MetarPoller(mockStore as never, mockIo as never);
-    poller.addSocket('s1', ['KLAX']);
+    poller.addSocket('s1', ['KLAX'], 0, 0);
     poller.removeSocket('s1');
     expect(poller.allWantedIcaos()).toHaveLength(0);
   });
@@ -35,8 +35,8 @@ describe('MetarPoller', () => {
   it('allWantedIcaos returns union across all sockets', async () => {
     const { MetarPoller } = await import('./MetarPoller');
     const poller = new MetarPoller(mockStore as never, mockIo as never);
-    poller.addSocket('s1', ['KLAX', 'KORD']);
-    poller.addSocket('s2', ['KORD', 'KJFK']);
+    poller.addSocket('s1', ['KLAX', 'KORD'], 0, 0);
+    poller.addSocket('s2', ['KORD', 'KJFK'], 0, 0);
     const wanted = poller.allWantedIcaos();
     expect(new Set(wanted)).toEqual(new Set(['KLAX', 'KORD', 'KJFK']));
   });
@@ -73,7 +73,7 @@ describe('MetarPoller', () => {
 
     const { MetarPoller } = await import('./MetarPoller');
     const poller = new MetarPoller(mockStore as never, mockIo as never);
-    poller.addSocket('s1', ['KLAX']);
+    poller.addSocket('s1', ['KLAX'], 0, 0);
 
     await poller.pollNow();
 

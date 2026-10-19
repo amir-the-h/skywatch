@@ -42,7 +42,6 @@ const makeAirport = (icao: string, lat = 34.0, lon = -118.0): Airport => ({
 
 describe('RedisStore — airport methods', () => {
   let store: RedisStore;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const client = mockClient;
 
   beforeEach(() => {

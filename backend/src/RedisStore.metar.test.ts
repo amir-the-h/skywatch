@@ -40,7 +40,6 @@ const makeMetar = (windDir: number | null = 270, windSpeed = 12): MetarData => (
 
 describe('RedisStore — METAR methods', () => {
   let store: RedisStore;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const client = mockClient;
 
   beforeEach(() => {
