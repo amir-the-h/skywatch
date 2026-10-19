@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import type { PointWeather } from '../../../shared/types';
+import type { PointWeather } from '../../shared/types';
 
 interface CenterWeatherState {
   centerWeather: PointWeather | null;

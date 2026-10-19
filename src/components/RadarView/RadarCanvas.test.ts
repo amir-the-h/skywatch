@@ -179,7 +179,7 @@ function makeCtx() {
     ctx: {
       save: () => {},
       restore: () => {},
-      fillText: (text: string, _x: number, _y: number) => calls.push({ text, font: currentFont }),
+      fillText: (text: string) => calls.push({ text, font: currentFont }),
       get font() { return currentFont; },
       set font(v: string) { currentFont = v; },
       set fillStyle(_: unknown) {},

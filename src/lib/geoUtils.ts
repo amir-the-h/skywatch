@@ -1,4 +1,4 @@
-import type { Airport } from '../../../shared/types';
+import type { Airport } from '../../shared/types';
 
 const R_KM = 6371;
 

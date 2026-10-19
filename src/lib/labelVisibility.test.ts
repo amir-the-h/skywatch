@@ -1,7 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { shouldShowLabel } from './labelVisibility';
 import type { Aircraft } from '../types/aircraft';
-import type { LabelCondition } from '../types/aircraft';
 
 function ac(overrides: Partial<Aircraft> = {}): Aircraft {
   return {

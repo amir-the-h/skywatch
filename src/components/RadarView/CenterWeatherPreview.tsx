@@ -1,4 +1,4 @@
-import type { PointWeather } from '../../../../shared/types';
+import type { PointWeather } from '../../../shared/types';
 
 const CARDINALS = ['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW'];
 function toCardinal(deg: number): string {

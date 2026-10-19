@@ -1,5 +1,5 @@
 // src/components/RadarView/AirportPreview.tsx
-import type { Airport, MetarData } from '../../../../shared/types';
+import type { Airport, MetarData } from '../../../shared/types';
 
 const CARDINALS = ['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW'];
 

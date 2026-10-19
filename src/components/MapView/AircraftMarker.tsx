@@ -6,7 +6,6 @@ import type { Aircraft } from '../../types/aircraft';
 import { aircraftColor } from '../../lib/colorSystem';
 import { getAircraftFamily, SILHOUETTE_PATHS, SILHOUETTE_VIEWBOX } from '../../lib/silhouettes';
 import { useAircraftStore } from '../../store/aircraftStore';
-import { useSettingsStore } from '../../hooks/useSettings';
 
 interface Props {
   aircraft: Aircraft;

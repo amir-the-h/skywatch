@@ -18,14 +18,14 @@ import { EmergencyDrawer } from './components/EmergencyDrawer/EmergencyDrawer';
 function StatusChip() {
   const lastUpdated = useAircraftStore((s) => s.lastUpdated);
   const aircraft = useAircraftStore((s) => s.aircraft);
-  const [now, setNow] = useState(Date.now());
+  const [now, setNow] = useState(() => Date.now());
 
   useEffect(() => {
     const id = setInterval(() => setNow(Date.now()), 1000);
     return () => clearInterval(id);
   }, []);
 
-  const secondsAgo = lastUpdated ? Math.round((now - lastUpdated) / 1000) : null;
+  const secondsAgo = lastUpdated ? Math.max(0, Math.round((now - lastUpdated) / 1000)) : null;
   const isStale = secondsAgo != null && secondsAgo > 15;
 
   return (

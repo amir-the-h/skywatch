@@ -13,7 +13,7 @@ import { useFilterStore } from '../../store/filterStore';
 import { matchesFilter } from '../../lib/aircraftFilter';
 import { aircraftColor } from '../../lib/colorSystem';
 import { useEmergencyStore } from '../../store/emergencyStore';
-import type { EmergencyAircraft } from '../../../../shared/types';
+import type { EmergencyAircraft } from '../../../shared/types';
 import type { Aircraft } from '../../types/aircraft';
 
 function emergencyToAircraft(em: EmergencyAircraft): Aircraft {
@@ -31,7 +31,7 @@ function emergencyToAircraft(em: EmergencyAircraft): Aircraft {
     squawk: em.squawk,
     emergency: em.emergency,
     seen: 0,
-    phase: 'cruise',
+    phase: 'CRZ',
     pathHistory: [],
     _renderLat: em.lat,
     _renderLon: em.lon,
@@ -56,9 +56,11 @@ function MapFollower() {
   const followHexRef = useRef<string | null>(followHex);
   const aircraftMapRef = useRef(aircraftMap);
   const emergencyRef = useRef<EmergencyAircraft[]>(emergencyAircraft);
-  followHexRef.current = followHex;
-  aircraftMapRef.current = aircraftMap;
-  emergencyRef.current = emergencyAircraft;
+  useEffect(() => {
+    followHexRef.current = followHex;
+    aircraftMapRef.current = aircraftMap;
+    emergencyRef.current = emergencyAircraft;
+  }, [followHex, aircraftMap, emergencyAircraft]);
 
   useEffect(() => {
     const id = setInterval(() => {
@@ -113,23 +115,21 @@ export function MapView() {
   const emergencyAircraft = useEmergencyStore((s) => s.aircraft);
   const filters = useFilterStore();
 
-  const [renderTick, setRenderTick] = useState(0);
+  const [frameNow, setFrameNow] = useState(() => Date.now());
   const rafRef = useRef<number>(0);
   const [hoverPos, setHoverPos] = useState<{ x: number; y: number } | null>(null);
   useEffect(() => {
     const loop = () => {
-      setRenderTick((t) => t + 1);
+      setFrameNow(Date.now());
       rafRef.current = requestAnimationFrame(loop);
     };
     rafRef.current = requestAnimationFrame(loop);
     return () => cancelAnimationFrame(rafRef.current);
   }, []);
 
-  const now = Date.now();
   const aircraft = Array.from(aircraftMap.values()).map((ac) =>
-    interpolatePosition(ac, now)
+    interpolatePosition(ac, frameNow)
   );
-  void renderTick;
 
   // Emergency aircraft pinned/followed but outside local radius — inject as synthetic markers
   const trackedHexes = new Set([...pinnedHexes, ...(followHex ? [followHex] : [])]);

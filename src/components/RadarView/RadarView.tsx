@@ -17,7 +17,7 @@ import { findClosestAirport } from '../../lib/geoUtils';
 import { AirportPreview } from './AirportPreview';
 import { useCenterWeatherStore } from '../../store/centerWeatherStore';
 import { CenterWeatherPreview } from './CenterWeatherPreview';
-import type { Airport, MetarData, PointWeather } from '../../../../shared/types';
+import type { Airport, MetarData, PointWeather } from '../../../shared/types';
 
 export function RadarView() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -91,10 +91,20 @@ export function RadarView() {
     setIsTransformed(false);
   }, []);
 
-  // Reset zoom and pan when radius changes
+  // Reset zoom and pan when radius changes: state is adjusted during render
+  // (React's recommended pattern for prop-driven resets), refs and the label
+  // cache in an effect.
+  const [viewRadiusKm, setViewRadiusKm] = useState(radiusKm);
+  if (viewRadiusKm !== radiusKm) {
+    setViewRadiusKm(radiusKm);
+    setZoomScale(1);
+    setIsTransformed(false);
+  }
   useEffect(() => {
-    resetView();
-  }, [radiusKm, resetView]);
+    resetLabelState();
+    zoomLevelRef.current = 1;
+    panOffsetRef.current = { x: 0, y: 0 };
+  }, [radiusKm]);
 
   const [hoverPos, setHoverPos] = useState<{ x: number; y: number } | null>(null);
   const hoveredAircraft = hoveredHex ? aircraftMap.get(hoveredHex) : null;

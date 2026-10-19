@@ -1,6 +1,6 @@
 // src/components/RadarView/RadarCanvas.ts
 import type { Aircraft, LabelCondition } from '../../types/aircraft';
-import type { Airport, MetarData, PointWeather } from '../../../../shared/types';
+import type { Airport, MetarData, PointWeather } from '../../../shared/types';
 import { aircraftColor, lightenHsl } from '../../lib/colorSystem';
 import { getAircraftFamily, SILHOUETTE_PATHS } from '../../lib/silhouettes';
 import { latLonToCanvas } from '../../lib/geoUtils';

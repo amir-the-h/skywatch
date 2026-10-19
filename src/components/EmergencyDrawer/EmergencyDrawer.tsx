@@ -1,7 +1,7 @@
 import { useEmergencyStore } from '../../store/emergencyStore';
 import { useAircraftStore } from '../../store/aircraftStore';
 import { useSettingsStore } from '../../hooks/useSettings';
-import type { EmergencyAircraft } from '../../../../shared/types';
+import type { EmergencyAircraft } from '../../../shared/types';
 
 interface Props {
   onClose: () => void;

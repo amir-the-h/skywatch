@@ -15,6 +15,8 @@ function makeAircraft(overrides: Partial<Aircraft> = {}): Aircraft {
     track: 90,
     baro_rate: 0,
     seen: 0,
+    phase: 'CRZ',
+    pathHistory: [],
     _renderLat: 41.0,
     _renderLon: 28.0,
     _lastSeen: 1000,

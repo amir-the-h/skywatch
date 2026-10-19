@@ -1,7 +1,7 @@
 import { useMemo } from 'react';
 import { useSettingsStore } from './useSettings';
 import { useAirportStore } from '../store/airportStore';
-import type { Airport } from '../../../shared/types';
+import type { Airport } from '../../shared/types';
 
 export function useAirports(): Airport[] {
   const { showAirports, airportTypes } = useSettingsStore();
