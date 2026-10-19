@@ -10,9 +10,13 @@ services:
     restart: unless-stopped
     environment:
       REDIS_URL: redis://redis:6379
-      POLL_INTERVAL_MS: "1000"
-      ADS_SOURCE: https://api.airplanes.live/v2/point
       PORT: "3001"
+      ADS_SOURCES: ${ADS_SOURCES:-https://api.adsb.lol/v2/point}
+      POLL_INTERVAL_MS: ${POLL_INTERVAL_MS:-1000}
+      ADS_REQUEST_GAP_MS: ${ADS_REQUEST_GAP_MS:-1100}
+      MAX_RADIUS_KM: ${MAX_RADIUS_KM:-500}
+    ports:
+      - "${BACKEND_PORT:-3001}:3001"
     depends_on:
       - redis
 
@@ -20,7 +24,9 @@ services:
     build:
       context: .
       args:
-        VITE_BACKEND_URL: https://skywatch.test
+        VITE_BACKEND_URL: ${VITE_BACKEND_URL:-http://localhost:3001}
     restart: unless-stopped
+    ports:
+      - "${FRONTEND_PORT:-8080}:80"
     depends_on:
       - backend

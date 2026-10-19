@@ -24,3 +24,15 @@ dist-ssr
 *.sw?
 .superpowers/
 docs/superpowers/
+
+# Environment
+.env
+
+# Claude Code local state
+.claude/settings.local.json
+.claude/worktrees/
+
+# Working notes (kept locally, not published)
+docs/plans/
+docs/specs/
+docs/adsb-hardware-research.md

@@ -10,7 +10,8 @@ npm run dev          # Vite dev server with HMR (http://localhost:5173)
 npm test             # Vitest unit tests (jsdom environment)
 npm run test:watch   # Vitest in watch mode
 npm run lint         # ESLint
-npm run build        # tsc + Vite production build
+npm run typecheck    # tsc -b (project references)
+npm run build        # tsc -b + Vite production build
 npm run generate:airports  # Regenerate public/airports.json from source data
 ```
 
@@ -20,6 +21,7 @@ cd backend
 npm run dev          # tsx watch (hot-reload)
 npm run start        # tsx (one-shot)
 npm test             # Vitest unit tests
+npm run typecheck    # tsc --noEmit
 ```
 
 ### Running a single test
