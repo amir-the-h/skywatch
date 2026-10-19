@@ -42,8 +42,8 @@ export interface Settings {
 }
 
 export const DEFAULT_SETTINGS: Settings = {
-  lat: 41.0082,
-  lng: 28.9784,
+  lat: 51.4700,
+  lng: -0.4543,
   radiusKm: 150,
   tileSource: 'osm',
   view: 'map',

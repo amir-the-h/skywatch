@@ -80,7 +80,7 @@ export default function App() {
 
       <div className="hud">
         <div className="hud-topleft">
-          <div className="app-logo">✈ FlightTracker</div>
+          <div className="app-logo">✈ SkyWatch</div>
 
           <div className="chip-group">
             <button
